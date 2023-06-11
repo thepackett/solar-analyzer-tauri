@@ -1,0 +1,23 @@
+.main-layout {
+    display: grid;
+    grid-template-columns: 1fr 64px;
+    grid-template-rows: 1fr;
+    inline-size: 100vi;
+    block-size: 100vb;
+    margin: 0;
+    padding: 0;
+    background-color: var(--theme-background-primary);
+}
+
+.button {
+    padding: 3px;
+}
+
+.button svg {
+    fill: red;
+    background-color: blue;
+}
+
+.visible {
+    display: block;
+}

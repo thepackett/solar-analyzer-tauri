@@ -1,0 +1,67 @@
+%message-shared {
+    border: 1px solid #00da0b;
+    padding: 5px;
+    margin: 10px;
+    color: var(--theme-text);
+    overflow: none;
+}
+
+.message {
+    @extend %message-shared;
+}
+
+.error {
+    @extend %message-shared;
+    border-color: red;
+}
+
+%message-box-shared {
+    list-style-type:none;
+    position: fixed;
+    bottom: 0;
+}
+
+.MessageBoxClassName {
+    @extend %message-box-shared;
+}
+
+// .TestClass2 {
+//     opacity: 100%;
+//     transition: opacity 10s linear 0s;
+// }
+
+// .msg-fade {
+//     opacity: 0%;
+// }
+
+
+.message {
+    animation: notification-fade-out;
+    animation-duration: 5s;
+    animation-fill-mode: forwards;
+}
+
+// .TestClass {
+//     animation: notification-fade-out;
+//     animation-duration: 5s;
+//     animation-fill-mode: forwards;
+// }
+
+// .TestClass3 {
+//     animation: notification-fade-out;
+//     animation-duration: 5s;
+//     animation-fill-mode: forwards;
+// }
+
+.message:Hover {
+    animation: none;
+}
+
+@keyframes notification-fade-out {
+    0% {
+        opacity: 100%;
+    }
+    100% {
+        opacity: 0%;
+    }
+}

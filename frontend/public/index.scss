@@ -1,0 +1,32 @@
+@import 'mixins';
+@import 'variables';
+
+@import 'css-components/_switch';
+@import 'css-components/sidebar';
+@import 'css-components/sidemenu';
+@import 'css-components/main_layout';
+@import 'css-components/notification';
+
+%root-setup {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+:root {
+    @extend %root-setup;
+}
+
+:root body {
+    @extend %root-setup;
+    overflow-inline: hidden;
+}
+
+:root.theme-light {
+    @include spread-map($theme-map-light);
+}
+
+:root.theme-dark {
+    @include spread-map($theme-map-dark);
+}
+

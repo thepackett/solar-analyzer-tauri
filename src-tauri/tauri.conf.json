@@ -56,10 +56,11 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 600,
+        "maximized": true,
+        "height": 540,
         "resizable": true,
         "title": "Solar Analyzer",
-        "width": 800
+        "width": 960
       }
     ]
   }
