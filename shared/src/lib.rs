@@ -1,6 +1,7 @@
 pub mod solar_data;
 pub mod parse;
 pub mod types;
+pub mod graph;
 
 // pub fn add(left: usize, right: usize) -> usize {
 //     left + right

@@ -1,5 +1,12 @@
+//import { emit, listen } from '@tauri-apps/api/event'
+
 const appWindow = window.__TAURI__.window.appWindow
 const invoke = window.__TAURI__.invoke
+const emit = window.__TAURI__.event.emit
+const listen = window.__TAURI__.event.listen
+const handlersMap = new Map()
+const intervalMap = new Map()
+
 
 // invoke('my_custom_command_name')
 // invoke('my_custom_command_name_with_argumants', { invoke_argument1: 'Hello!'})
@@ -9,10 +16,21 @@ const invoke = window.__TAURI__.invoke
 // More details here:
 // https://tauri.app/v1/guides/features/command/
 
-export async function invokeHello(name) {
-    return await invoke("Hello", {name: name});
-}
+//Set up listeners that will receive tauri events and emit DOM events
+const unlisten = await listen('solar_parse_complete', (event) => {
+    console.log("recieved solar_parse_complete event");
+    document.getElementById("graph_state_holder").dispatchEvent(new CustomEvent("solar_parse_complete", {detail: event.payload}));
+});
 
+const unlisten2 = await listen("data_request_complete", (event) => {
+    console.log("recieved data_request_complete event");
+    document.getElementById("graph_state_holder").dispatchEvent(new CustomEvent("data_request_complete", {detail: event.payload}));
+});
+
+
+export function retrieveSolarData(json_string) {
+    invoke('retrieve_solar_data', {graphStateRequest: json_string})
+}
 
 export function readFiles(file_list) {
     //console.log(file_list);
@@ -21,7 +39,6 @@ export function readFiles(file_list) {
         console.log("Passed in object is not an instance of a FileList");
         return;
     }
-    let data_storage_array = new Array();
     for (let i = 0; i < file_list.length; i++) {
         let file = file_list.item(i);
         if(!(file.type == "text/csv")){
@@ -34,13 +51,11 @@ export function readFiles(file_list) {
                 (contents) => {
                     //invoke function which passes data to backend
                     invoke('parse_solar_data', {data: contents})
-                        .then((data_storage) => {
-                            console.log("invoked function returned ok");
-                            console.log(data_storage);
-                            data_storage_array.push(data_storage);
+                        .then(() => {
+                            //console.log("invoked function returned ok");
                         })
                         .catch((err) => {
-                            console.log("invoked function returned error");
+                            console.log("invoked function returned error: " + err);
                         });
                 },
                 //Rejected case
@@ -94,43 +109,117 @@ export function getTheme() {
 }
 
 export function removeClasses(css_selector, classes) {
-    console.log("clicked");
     let class_array = classes.split(' ')
         .filter(text => text.length > 0)
         .map(s => s.trim());
     let elements = document.querySelectorAll(css_selector);
     for(let i=0; i < elements.length; i++){
         for(let j=0; j< class_array.length; j++){
-            console.log("Removing class " + class_array[j] + " from element " + elements[i]);
             elements[i].classList.remove(class_array[j]);
         }
     }
 }
 
 export function addClasses(css_selector, classes) {
-    console.log("clicked");
     let class_array = classes.split(' ')
         .filter(text => text.length > 0)
         .map(s => s.trim());
     let elements = document.querySelectorAll(css_selector);
     for(let i=0; i < elements.length; i++){
         for(let j=0; j< class_array.length; j++){
-            console.log("Adding class " + class_array[j] + " to element " + elements[i]);
             elements[i].classList.add(class_array[j]);
         }
     }
 }
 
 export function toggleClasses(css_selector, classes) {
-    console.log("clicked");
     let class_array = classes.split(' ')
         .filter(text => text.length > 0)
         .map(s => s.trim());
     let elements = document.querySelectorAll(css_selector);
     for(let i=0; i < elements.length; i++){
         for(let j=0; j< class_array.length; j++){
-            console.log("Toggling class " + class_array[j] + " in element " + elements[i]);
             elements[i].classList.toggle(class_array[j]);
         }
     }
+}
+
+export function getStyle(css_selector, style) {
+    let element = document.querySelector(css_selector);
+    let styles = window.getComputedStyle(element);
+    let result = styles.getPropertyValue(style);
+    if (result.length == 0) {
+        return;
+    } else {
+        return result;
+    }
+}
+
+export function getElementOffsetHeight(css_selector) {
+    let element = document.querySelector(css_selector);
+    if (element == null) {
+        return
+    } else {
+        return element.offsetHeight;
+    }
+}
+
+export function getElementOffsetWidth(css_selector) {
+    let element = document.querySelector(css_selector);
+    if (element == null) {
+        return
+    } else {
+        console.log(element.offsetWidth);
+        return element.offsetWidth;
+    }
+}
+
+export function setCanvasSize(canvasid, width, height) {
+    let canvascontext = document.getElementById(canvasid);
+    if(canvascontext == null) {
+        console.log("Attempted to set canvas size of a canvas that does not exist.");
+        return;
+    }
+    canvascontext.width = width;
+    canvascontext.height = height;
+    canvascontext.dispatchEvent(new Event("draw_" + canvasid));
+}
+
+
+export function resizeCanvas(canvasid, containerid) {
+    let container = document.getElementById(containerid);
+    if(container == null){
+        return;
+    }
+    setCanvasSize(canvasid, container.offsetWidth, container.offsetHeight);
+}
+
+export function setupCanvasEvents(canvasid, containerid) {
+    //Resize event handling
+    handlersMap.set(canvasid, function(e) {
+        console.log("resize event called");
+        let container = document.getElementById(containerid);
+        if(container == null){
+            return;
+        }
+        setCanvasSize(canvasid, container.offsetWidth, container.offsetHeight);
+    });
+    window.addEventListener("resize", handlersMap.get(canvasid));
+
+    //Redraw interval
+    intervalMap.set(canvasid, window.setInterval(function () {
+        let canvas = document.getElementById(canvasid);
+        if(canvas == null) {
+            return;
+        }
+        canvas.dispatchEvent(new Event("draw_" + canvasid));
+    }, 33));
+
+}
+
+export function teardownCanvasEvents(canvasid) {
+    window.removeEventListener("resize", handlersMap.get(canvasid));
+    handlersMap.delete(canvasid);
+    window.clearInterval(intervalMap.get(canvasid));
+    intervalMap.delete(canvasid);
 }

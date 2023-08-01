@@ -9,7 +9,7 @@ use super::simple_message::SimpleMessageProperties;
 
 pub struct MessageBox {
     app_state: Rc<AppState>,
-    context_handle: ContextHandle<Rc<AppState>>,
+    _context_handle: ContextHandle<Rc<AppState>>,
     messages: FixedSizeQueue<(u32, SimpleMessageProperties)>,
 }
 
@@ -46,7 +46,7 @@ impl Component for MessageBox {
 
         let mut component = MessageBox {
             app_state: new_app_state,
-            context_handle: _context_handle,
+            _context_handle,
             messages: FixedSizeQueue::new(props.queue_capacity),
             
         };
@@ -93,7 +93,6 @@ impl Component for MessageBox {
 
         html!{
             <div>
-                <p>{self.messages.len()}</p>
                 <ol class={ctx.props().class.to_string()}>
                     {
                     messages.iter().map(|message| 

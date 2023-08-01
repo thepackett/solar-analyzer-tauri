@@ -1,0 +1,9 @@
+@import 'graph';
+
+.main-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: 1fr;
+    inline-size: auto;
+    block-size: 100vb;
+}

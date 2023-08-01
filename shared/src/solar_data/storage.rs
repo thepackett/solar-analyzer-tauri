@@ -3,8 +3,8 @@ use serde::{Serialize, Deserialize};
 use crate::{solar_data::line::DataLine};
 
 
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
+//Note that PartialEq implementation might be a bit slow here, as it will test for equality for all datalines. For large data sets, this may be slow.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DataStorage {
     pub data: Vec<DataLine>,
 }
@@ -39,5 +39,9 @@ impl DataStorage {
         for new_data_line in &new_data.data {
             self.push_data_line(new_data_line.clone());
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
     }
 }

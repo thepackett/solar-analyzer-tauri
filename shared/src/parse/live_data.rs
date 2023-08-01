@@ -41,6 +41,9 @@ impl TryParse for LiveData {
                 .ok_or(ParseError::DateTimeParseError)?,
         ));
         let date = Date::try_from(parsed)?;
+        if date.midnight().assume_utc().unix_timestamp() < 1262325600 {
+            return Err(ParseError::InvalidData)
+        }
         let data_line_builder = data_line_builder.set_date(date);
         //Test the third entry...
         let time = Time::parse(current.next().ok_or(ParseError::InsufficientData)?, format_description!("[hour repr:24]:[minute]:[second]"))?;

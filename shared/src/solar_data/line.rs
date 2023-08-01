@@ -1,13 +1,13 @@
 use std::cmp::Ordering;
 use serde::{Serialize, Deserialize};
 use time::{Date, Time};
-use crate::{solar_data::value::DataValue};
+use crate::{solar_data::value::DataValue, graph::graph_axis::AxisData};
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataLine {
-    unix_time: i64,
-    line: Vec<DataValue>,
+    pub unix_time: i64,
+    pub line: Vec<DataValue>,
 }
 
 impl DataLine {
@@ -29,6 +29,120 @@ impl DataLine {
         }
     }
 
+    pub fn search_data(&self, data: &DataValue) -> Option<&DataValue> {
+            let search_result = self.line.binary_search(data);
+            match search_result {
+              Ok(index) => Some(&self.line[index]),
+              Err(_) => None,
+            }
+    }
+
+    pub fn calculate_axis_data(&self, axis: AxisData) -> Option<f64> {
+        match axis {
+            AxisData::Time => Some(self.unix_time as f64),
+            AxisData::BatteryVoltage => {
+              let search_result = self.search_data(&DataValue::BatteryVoltage(0.0)).cloned();
+              match search_result {
+                Some(data) => if let DataValue::BatteryVoltage(n) = data {
+                  Some(n as f64)
+                } else {
+                  None
+                },
+                None => None,
+              }
+            },
+            AxisData::BatteryAmps => {
+                let search_result = self.search_data(&DataValue::BatteryAmps(0.0)).cloned();
+                match search_result {
+                  Some(data) => if let DataValue::BatteryAmps(n) = data {
+                    Some(n as f64)
+                  } else {
+                    None
+                  },
+                  None => None,
+                }
+              },
+            AxisData::SolarWatts => {
+                let search_result = self.search_data(&DataValue::SolarWatts(0.0)).cloned();
+                match search_result {
+                  Some(data) => if let DataValue::SolarWatts(n) = data {
+                    Some(n as f64)
+                  } else {
+                    None
+                  },
+                  None => None,
+                }
+              },
+            AxisData::LoadWatts => {
+                let search_result = self.search_data(&DataValue::LoadWatts(0.0)).cloned();
+                match search_result {
+                  Some(data) => if let DataValue::LoadWatts(n) = data {
+                    Some(n as f64)
+                  } else {
+                    None
+                  },
+                  None => None,
+                }
+              },
+            AxisData::StateOfChargePercent => {
+                let search_result = self.search_data(&DataValue::StateOfChargePercent(0.0)).cloned();
+                match search_result {
+                  Some(data) => if let DataValue::StateOfChargePercent(n) = data {
+                    Some(n as f64)
+                  } else {
+                    None
+                  },
+                  None => None,
+                }
+              },
+            AxisData::CellVoltage(cell) => {
+                let search_result = self.search_data(&DataValue::CellVoltage { cell, voltage: 0.0 }).cloned();
+                match search_result {
+                  Some(data) => if let DataValue::CellVoltage { cell: _, voltage } = data {
+                    Some(voltage as f64)
+                  } else {
+                    None
+                  },
+                  None => None,
+                }
+              },
+            AxisData::ControllerPanelVoltage(controller) => {
+                let search_result = self.search_data(&DataValue::ControllerPanelVoltage { controller, voltage: 0.0 }).cloned();
+                match search_result {
+                  Some(data) => if let DataValue::ControllerPanelVoltage { controller: _, voltage } = data {
+                    Some(voltage as f64)
+                  } else {
+                    None
+                  },
+                  None => None,
+                }
+              },
+            AxisData::ControllerAmps(controller) => {
+                let search_result = self.search_data(&DataValue::ControllerAmps { controller, amps: 0.0 }).cloned();
+                match search_result {
+                  Some(data) => if let DataValue::ControllerAmps { controller: _, amps } = data {
+                    Some(amps as f64)
+                  } else {
+                    None
+                  },
+                  None => None,
+                }
+              },
+            AxisData::ControllerTemperatureF(controller) => {
+                let search_result = self.search_data(&DataValue::ControllerTemperatureF { controller, temperature: 0.0 }).cloned();
+                match search_result {
+                  Some(data) => if let DataValue::ControllerTemperatureF { controller: _, temperature } = data {
+                    Some(temperature as f64)
+                  } else {
+                    None
+                  },
+                  None => None,
+                }
+              },
+            AxisData::Custom(s) => todo!(),
+          }
+    }
+
     // pub fn len(&self) -> usize {
     //     self.line.len()
     // }
@@ -40,6 +154,12 @@ impl DataLine {
     // pub fn get_time(&self) -> &Time {
     //     &self.time
     // }
+}
+
+impl From<i64> for DataLine {
+    fn from(value: i64) -> Self {
+        DataLine { unix_time: value, line: Vec::new() }
+    }
 }
 
 impl std::iter::IntoIterator for DataLine {

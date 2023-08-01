@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 use strum_macros::IntoStaticStr;
 
 
+
 //Note that cell and controller are both zero indexed.
 #[derive(IntoStaticStr, Clone, Debug, Serialize, Deserialize)]
 pub enum DataValue {
@@ -24,11 +25,6 @@ pub enum DataValue {
     StatisticsLoadWatts(f32),
     StatisticsStateOfChargePercentHigh(f32),
     StatisticsStateOfChargePercentLow(f32),
-}
-
-
-impl DataValue {
-
 }
 
 impl Ord for DataValue {

@@ -1,0 +1,24 @@
+.graph {
+    width: auto;
+    height: auto;
+    display: grid;
+    grid-template-columns: 5em 1fr;
+    grid-template-rows: 1fr 5em;
+}
+
+.graph-timescale {
+    width: 5em;
+    height: 5em;
+    overflow: hidden;
+}
+
+.graph-canvas {
+    position: absolute;
+    object-fit: cover;
+}
+
+#canvas-container {
+    width: auto;
+    height: auto;
+    overflow: hidden;
+}

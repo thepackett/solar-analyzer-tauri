@@ -34,6 +34,9 @@ impl TryParse for StoredData {
                 .ok_or(ParseError::DateTimeParseError)?,
         ));
         let date = Date::try_from(parsed)?;
+        if date.midnight().assume_utc().unix_timestamp() < 1262325600 {
+            return Err(ParseError::InvalidData)
+        }
         let data_line_builder = data_line_builder.set_date(date);
         //Test the second entry...
         let time = Time::parse(

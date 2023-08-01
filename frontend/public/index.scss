@@ -5,12 +5,15 @@
 @import 'css-components/sidebar';
 @import 'css-components/sidemenu';
 @import 'css-components/main_layout';
+@import 'css-components/main_content';
 @import 'css-components/notification';
 
 %root-setup {
     margin: 0;
     padding: 0;
     border: 0;
+    color: var(--theme-text);
+    z-index: -1;
 }
 
 :root {
@@ -30,3 +33,6 @@
     @include spread-map($theme-map-dark);
 }
 
+* {
+    box-sizing: border-box;
+}
