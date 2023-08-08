@@ -77,6 +77,10 @@ pub struct ThemeData {
     pub theme_background_secondary: Color,
     pub theme_background_tertiary: Color,
     pub theme_text: Color,
+    pub theme_graph_background: Color,
+    pub theme_graph_mesh_light: Color,
+    pub theme_graph_mesh_dark: Color,
+    pub theme_graph_border: Color,
 }
 
 impl From<Color> for RGBColor {

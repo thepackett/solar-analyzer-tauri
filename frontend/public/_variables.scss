@@ -4,6 +4,10 @@ $--theme-background-primary: --theme-background-primary;
 $--theme-background-secondary: --theme-background-secondary;
 $--theme-background-tertiary: --theme-background-tertiary;
 $--theme-text: --theme-text;
+$--theme-graph-background: --theme-graph-background;
+$--theme-graph-mesh-light: --theme-graph-mesh-light;
+$--theme-graph-mesh-dark: --theme-graph-mesh-dark;
+$--theme-graph-border: --theme-graph-border;
 
 $theme-map-light: (
     $--theme-primary: #d75894,
@@ -12,6 +16,10 @@ $theme-map-light: (
     $--theme-background-secondary: #cecece,
     $--theme-background-tertiary: #888888,
     $--theme-text: #000000,
+    $--theme-graph-background: #ebebeb,
+    $--theme-graph-mesh-light: #cecece,
+    $--theme-graph-mesh-dark: #363636,
+    $--theme-graph-border: #000000,
 );
 
 $theme-map-dark: (
@@ -21,4 +29,8 @@ $theme-map-dark: (
     $--theme-background-secondary: #1f1f1f,
     $--theme-background-tertiary: #0f0f0f,
     $--theme-text: #ffffff,
+    $--theme-graph-background: #363636,
+    $--theme-graph-mesh-light: #cecece,
+    $--theme-graph-mesh-dark: #f34c83,
+    $--theme-graph-border: #cecece,
 );

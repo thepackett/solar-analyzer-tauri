@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use serde::{Serialize, Deserialize};
 use time::{Date, Time};
-use crate::{solar_data::value::DataValue, graph::graph_axis::AxisData};
+use crate::{solar_data::value::DataValue, graph::graph_axis::AxisDataType};
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,10 +37,10 @@ impl DataLine {
             }
     }
 
-    pub fn calculate_axis_data(&self, axis: AxisData) -> Option<f64> {
+    pub fn calculate_axis_data(&self, axis: AxisDataType) -> Option<f64> {
         match axis {
-            AxisData::Time => Some(self.unix_time as f64),
-            AxisData::BatteryVoltage => {
+            AxisDataType::Time => Some(self.unix_time as f64),
+            AxisDataType::BatteryVoltage => {
               let search_result = self.search_data(&DataValue::BatteryVoltage(0.0)).cloned();
               match search_result {
                 Some(data) => if let DataValue::BatteryVoltage(n) = data {
@@ -51,7 +51,7 @@ impl DataLine {
                 None => None,
               }
             },
-            AxisData::BatteryAmps => {
+            AxisDataType::BatteryAmps => {
                 let search_result = self.search_data(&DataValue::BatteryAmps(0.0)).cloned();
                 match search_result {
                   Some(data) => if let DataValue::BatteryAmps(n) = data {
@@ -62,7 +62,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisData::SolarWatts => {
+            AxisDataType::SolarWatts => {
                 let search_result = self.search_data(&DataValue::SolarWatts(0.0)).cloned();
                 match search_result {
                   Some(data) => if let DataValue::SolarWatts(n) = data {
@@ -73,7 +73,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisData::LoadWatts => {
+            AxisDataType::LoadWatts => {
                 let search_result = self.search_data(&DataValue::LoadWatts(0.0)).cloned();
                 match search_result {
                   Some(data) => if let DataValue::LoadWatts(n) = data {
@@ -84,7 +84,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisData::StateOfChargePercent => {
+            AxisDataType::StateOfChargePercent => {
                 let search_result = self.search_data(&DataValue::StateOfChargePercent(0.0)).cloned();
                 match search_result {
                   Some(data) => if let DataValue::StateOfChargePercent(n) = data {
@@ -95,7 +95,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisData::CellVoltage(cell) => {
+            AxisDataType::CellVoltage(cell) => {
                 let search_result = self.search_data(&DataValue::CellVoltage { cell, voltage: 0.0 }).cloned();
                 match search_result {
                   Some(data) => if let DataValue::CellVoltage { cell: _, voltage } = data {
@@ -106,7 +106,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisData::ControllerPanelVoltage(controller) => {
+            AxisDataType::ControllerPanelVoltage(controller) => {
                 let search_result = self.search_data(&DataValue::ControllerPanelVoltage { controller, voltage: 0.0 }).cloned();
                 match search_result {
                   Some(data) => if let DataValue::ControllerPanelVoltage { controller: _, voltage } = data {
@@ -117,7 +117,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisData::ControllerAmps(controller) => {
+            AxisDataType::ControllerAmps(controller) => {
                 let search_result = self.search_data(&DataValue::ControllerAmps { controller, amps: 0.0 }).cloned();
                 match search_result {
                   Some(data) => if let DataValue::ControllerAmps { controller: _, amps } = data {
@@ -128,7 +128,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisData::ControllerTemperatureF(controller) => {
+            AxisDataType::ControllerTemperatureF(controller) => {
                 let search_result = self.search_data(&DataValue::ControllerTemperatureF { controller, temperature: 0.0 }).cloned();
                 match search_result {
                   Some(data) => if let DataValue::ControllerTemperatureF { controller: _, temperature } = data {
@@ -139,7 +139,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisData::Custom(s) => todo!(),
+            AxisDataType::Custom(s) => todo!(),
           }
     }
 

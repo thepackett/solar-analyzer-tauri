@@ -3,6 +3,7 @@
     padding: 5px;
     margin: 10px;
     color: var(--theme-text);
+    background-color: var(--theme-background-primary);
     overflow: none;
 }
 
@@ -16,7 +17,7 @@
 }
 
 %message-box-shared {
-    background-color: var(--theme-background-primary);
+    
     list-style-type:none;
     position: absolute;
     bottom: 0;

@@ -32,39 +32,23 @@ export function retrieveSolarData(json_string) {
     invoke('retrieve_solar_data', {graphStateRequest: json_string})
 }
 
-export function readFiles(file_list) {
-    //console.log(file_list);
-    //Possibly an unnecessary check since it is checked in rust.
-    if(!(file_list instanceof FileList)) {
-        console.log("Passed in object is not an instance of a FileList");
-        return;
+export function readFile(file) {
+    if(!(file.type == "text/csv")){
+        console.log("File type is not text/csv, skipping...");
+        throw "InvalidFileType|" + file.name;
     }
-    for (let i = 0; i < file_list.length; i++) {
-        let file = file_list.item(i);
-        if(!(file.type == "text/csv")){
-            console.log("File type is not text/csv, skipping...");
-            continue;
-        }
-        file.text()
-            .then(
-                //Accepted case
-                (contents) => {
-                    //invoke function which passes data to backend
-                    invoke('parse_solar_data', {data: contents})
-                        .then(() => {
-                            //console.log("invoked function returned ok");
-                        })
-                        .catch((err) => {
-                            console.log("invoked function returned error: " + err);
-                        });
-                },
-                //Rejected case
-                (err) => {
-                    console.log("Could not get contents of file. Error: " + err);
-                }
-            )
-    }
-    return data_storage_array;
+    file.text()
+        .then(
+            //Accepted case
+            (contents) => {
+                //invoke function which passes data to backend
+                invoke('parse_solar_data', {name: file.name, data: contents});
+            },
+            //Rejected case
+            (err) => {
+                throw "UnknownJsError|" + file.name + "|" + err;
+            }
+        )
 }
 
 export function setTheme(theme) {

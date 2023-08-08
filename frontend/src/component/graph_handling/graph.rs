@@ -1,9 +1,9 @@
-use std::{rc::Rc, cmp::max};
+use std::{rc::Rc, ops::Range};
 
 use gloo_events::EventListener;
 use plotters::prelude::*;
 use plotters_canvas::CanvasBackend;
-use shared::{solar_data::{line::DataLine, value::DataValue}, graph::graph_axis::AxisData};
+use shared::graph::graph_axis::{AxisData, AxisZoom};
 use web_sys::HtmlElement;
 use yew::prelude::*;
 
@@ -14,6 +14,11 @@ use super::graph_state::GraphState;
 pub struct Graph {
     graph_state: Rc<GraphState>,
     _context_handle: ContextHandle<Rc<GraphState>>,
+    x_axis_zoom: AxisZoom,
+    y_axis_zoom: AxisZoom,
+    periodic: Option<i64>,
+    previous_x_range: Range<f64>,
+    previous_y_range: Range<f64>,
     pub canvas_node_ref: NodeRef,
     pub draw_listener: Option<EventListener>,
 }
@@ -28,7 +33,6 @@ pub struct GraphProperties {
 pub enum GraphMessage {
     ContextChanged(Rc<GraphState>),
     DrawGraph,
-    // ResizeGraph,
 }
 
 impl Component for Graph {
@@ -40,13 +44,18 @@ impl Component for Graph {
 
         let (graph_state, _context_handle) = 
             ctx.link().context::<Rc<GraphState>>(ctx.link().callback(Self::Message::ContextChanged))
-            .expect("GraphState context must be set for Graph to function.");//REMIND YOURSELF HOW CONTEXTS WORK, compare with initial implementation in Message_Box
+            .expect("GraphState context must be set for Graph to function.");
 
         Self {
             graph_state: graph_state,
             _context_handle: _context_handle,
             canvas_node_ref: NodeRef::default(),
             draw_listener: None,
+            x_axis_zoom: AxisZoom::Auto,
+            y_axis_zoom: AxisZoom::Auto,
+            previous_x_range: 0f64..1f64,
+            previous_y_range: 0f64..1f64,
+            periodic: None,
         }
     }
 
@@ -60,24 +69,14 @@ impl Component for Graph {
                     return true
                 };
                 let result = draw_graph(canvas_id.as_ref(), self.graph_state.clone(), theme_data);
-                // let result = draw(canvas_id.as_ref(), 2);
+                if let Err(e) = result {
+                    let error = wasm_bindgen::JsValue::from_str(e.to_string().as_str());
+                    web_sys::console::error_1(&error);
+                }
             },
             GraphMessage::ContextChanged(graph_state) => {
                 self.graph_state = graph_state;
             }
-            // GraphMessage::ResizeGraph => {
-            //     let container_id = ctx.props().canvas_container_id.to_string();
-            //     let canvas_id = ctx.props().canvas_id.to_string();
-            //     let height: i32 = match get_element_offset_height(format!("#{}", container_id.clone())) {
-            //         Some(height) => height,
-            //         None => return true,
-            //     };
-            //     let width: i32 = match get_element_offset_width(format!("#{}", container_id.clone())) {
-            //         Some(width) => width,
-            //         None => return true,
-            //     };
-            //     set_canvas_size(canvas_id.clone(), width, height);
-            // },
         }
         true
     }
@@ -142,91 +141,99 @@ impl Component for Graph {
 //Secondly, I need to hook up graph colors to theme colors. Whenever the theme changes, the graph needs to redraw. Update: Graph is being redrawn 30 times per second.
 //Thirdly, I need to hook up the graph data into the appstate (best solution for a "global variable" in yew). Whenever the app state updates, the graph should redraw. Update: use graph state.
 //TBD: Controls and whatnot are still uncertain. Should I work on those first?
-
-// pub fn convert_hex_to_RGBA(hex: String) {
-
-// }
-
-/// Type alias for the result of a drawing function.
-pub type DrawResult<T> = Result<T, Box<dyn std::error::Error>>;
-
-pub fn draw(canvas_id: &str, power: i32) -> DrawResult<impl Fn((i32, i32)) -> Option<(f32, f32)>> {
-    let backend = CanvasBackend::new(canvas_id).expect("cannot find canvas");
-    let root = backend.into_drawing_area();
-    let font: FontDesc = ("sans-serif", 20.0).into();
-
-    root.fill(&WHITE)?;
-
-    let mut chart = ChartBuilder::on(&root)
-        .margin(20u32)
-        .caption(format!("y=x^{}", power), font)
-        .x_label_area_size(30u32)
-        .y_label_area_size(30u32)
-        .build_cartesian_2d(-1f32..1f32, -1.2f32..1.2f32)?;
-
-    chart.configure_mesh().x_labels(3).y_labels(3).draw()?;
-
-    chart.draw_series(LineSeries::new(
-        (-50..=50)
-            .map(|x| x as f32 / 50.0)
-            .map(|x| (x, x.powf(power as f32))),
-        &RED,
-    ))?;
-
-    root.present()?;
-    return Ok(chart.into_coord_trans());
-}
-
 //Also need to include mouse location somewhere
+
 pub fn draw_graph(canvas_id: &str, graph_state: Rc<GraphState>, theme: ThemeData) -> Result<(), Box<dyn std::error::Error>>  {
     let backend = CanvasBackend::new(canvas_id).expect("cannot find canvas");
     let root = backend.into_drawing_area();
     //let font: FontDesc = ("sans-serif", 20.0).with_color(&RGBColor::from(theme.theme_text)).into();
     let font = FontDesc::new(FontFamily::from("sans-serif"), 20.0, FontStyle::Normal);
 
-    root.fill(&RGBColor::from(theme.theme_background_primary))?;
+    root.fill(&RGBColor::from(theme.theme_graph_background))?;
 
-    let x_axis_range = match &graph_state.details.x_axis {
-        AxisData::Time => {
-            graph_state.details.start_time.as_f64()..graph_state.details.end_time.as_f64()
-        },
-        AxisData::BatteryVoltage => todo!(),
-        AxisData::BatteryAmps => todo!(),
-        AxisData::SolarWatts => todo!(),
-        AxisData::LoadWatts => todo!(),
-        AxisData::StateOfChargePercent => todo!(),
-        AxisData::CellVoltage(cell) => todo!(),
-        AxisData::ControllerPanelVoltage(controller) => todo!(),
-        AxisData::ControllerAmps(controller) => todo!(),
-        AxisData::ControllerTemperatureF(controller) => todo!(),
-        AxisData::Custom(s) => todo!(),
-    };
-
-    let y_axis_range = graph_state.line_series.series.iter().fold(0f64..0f64, |accumulator, series| {
-        let max_point = series.data_points.iter().fold((0f64, f64::MIN), |accumulator, e| {
-            if accumulator.1 < e.1 {
-                *e
+    let x_axis_range = graph_state.line_series.series.iter().map(|series| {
+        let max_point = series.data_points.iter().reduce(|accumulator, e| {
+            if accumulator.0 < e.0 {
+                e
             } else {
                 accumulator
             }
-        });
-        let min_point = series.data_points.iter().fold((0f64, f64::MAX), |accumulator, e| {
-            if accumulator.1 > e.1 {
-                *e
+        }).unwrap_or(&(0f64,0f64));
+        let min_point = series.data_points.iter().reduce(|accumulator, e| {
+            if accumulator.0 > e.0 {
+                e
             } else {
                 accumulator
             }
-        });
+        }).unwrap_or(&(0f64,0f64));
 
+        min_point.0 .. max_point.0
+    }).reduce(|accumulator, series_range| {
         let mut range = accumulator.clone();
-        if range.start > min_point.1 {
-            range.start = min_point.1;
+        if range.start > series_range.start {
+            range.start = series_range.start;
         }
-        if range.end < max_point.1 {
-            range.end = max_point.1;
+        if range.end < series_range.end {
+            range.end = series_range.end;
         }
         range
-    });
+    }).unwrap_or(0f64..0f64);
+
+
+
+    let y_axis_range = graph_state.line_series.series.iter().map(|series| {
+        let max_point = series.data_points.iter().reduce(|accumulator, e| {
+            if accumulator.1 < e.1 {
+                e
+            } else {
+                accumulator
+            }
+        }).unwrap_or(&(0f64,0f64));
+        let min_point = series.data_points.iter().reduce(|accumulator, e| {
+            if accumulator.1 > e.1 {
+                e
+            } else {
+                accumulator
+            }
+        }).unwrap_or(&(0f64,0f64));
+
+        min_point.1 .. max_point.1
+    }).reduce(|accumulator, series_range| {
+        let mut range = accumulator.clone();
+        if range.start > series_range.start {
+            range.start = series_range.start;
+        }
+        if range.end < series_range.end {
+            range.end = series_range.end;
+        }
+        range
+    }).unwrap_or(0f64..0f64);
+
+    // let y_axis_range = graph_state.line_series.series.iter().fold(0f64..0f64, |accumulator, series| {
+    //     let max_point = series.data_points.iter().fold((f64::MIN, f64::MIN), |accumulator, e| {
+    //         if accumulator.1 < e.1 {
+    //             *e
+    //         } else {
+    //             accumulator
+    //         }
+    //     });
+    //     let min_point = series.data_points.iter().fold((f64::MAX, f64::MAX), |accumulator, e| {
+    //         if accumulator.1 > e.1 {
+    //             *e
+    //         } else {
+    //             accumulator
+    //         }
+    //     });
+
+    //     let mut range = accumulator.clone();
+    //     if range.start > min_point.1 {
+    //         range.start = min_point.1;
+    //     }
+    //     if range.end < max_point.1 {
+    //         range.end = max_point.1;
+    //     }
+    //     range
+    // });
 
     let secondary_y_axis_range = graph_state.line_series.secondary_series.iter().fold(0f64..1f64, |accumulator, series| {
         let max_point = series.data_points.iter().fold((0f64, f64::MIN), |accumulator, e| {
@@ -262,12 +269,26 @@ pub fn draw_graph(canvas_id: &str, graph_state: Rc<GraphState>, theme: ThemeData
     
 
     graph_state.line_series.series.iter().enumerate().for_each(|series| {
-        chart.draw_series(LineSeries::new(series.1.data_points.clone(), Palette99::pick(series.0)));
+        let _result = chart.draw_series(LineSeries::new(series.1.data_points.clone(), Palette99::pick(series.0)));
     });
 
 
-        chart.configure_mesh().x_labels(3).y_labels(3).label_style(&RGBColor::from(theme.theme_text.clone())).draw()?;
-        chart.configure_series_labels().label_font(font.clone().color(&RGBColor::from(theme.theme_text)));
+        chart.configure_mesh()
+            .light_line_style(&RGBColor::from(theme.theme_graph_mesh_light))
+            .bold_line_style(&RGBColor::from(theme.theme_graph_mesh_dark))
+            .axis_style(&RGBColor::from(theme.theme_graph_border))
+            .x_desc("X axis description")
+            .x_labels(3)
+            .y_desc("Y Axis description")
+            .y_labels(3)
+            .label_style(&RGBColor::from(theme.theme_text.clone()))
+            .draw()?;
+        chart.configure_series_labels()
+            .label_font(font.clone().color(&RGBColor::from(theme.theme_text)));
+
+
+        //chart.set_secondary_coord(x_axis_range, secondary_y_axis_range).configure_secondary_axes();
+
 
     root.present()?;
     Ok(())

@@ -1,13 +1,12 @@
 use std::rc::Rc;
 use gloo_events::EventListener;
-use serde::{Deserialize, Serialize};
-use shared::{graph::{graph_axis::{AxisData, LineSeriesHolder, LineSeriesData}, graph_state_request::{GraphStateRequest, Resolution}}};
+use shared::graph::{graph_axis::{AxisData, LineSeriesHolder, AxisDataType, AxisDataOptions}, graph_state_request::{GraphStateRequest, Resolution}};
 use time::{PrimitiveDateTime, macros::date, macros::time};
-use wasm_bindgen::{JsCast, UnwrapThrowExt, JsValue};
+use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::{HtmlElement, CustomEvent};
 use yew::prelude::*;
 
-use crate::{app_state::AppState, bindings};
+use crate::{app_state::AppState, bindings, component::message_handling::simple_message::SimpleMessageProperties};
 
 
 #[derive(PartialEq)]
@@ -36,7 +35,7 @@ pub enum GraphStateHolderMessage {
     NewState(Rc<GraphState>),
     ContextChanged(Rc<AppState>),
     NewData(LineSeriesHolder),
-    RequestNewData,
+    ParseComplete(String),
 }
 
 impl Component for GraphStateHolder {
@@ -56,8 +55,18 @@ impl Component for GraphStateHolder {
                     update_graph_state_callback: update_graph_state_callback,
                     line_series: LineSeriesHolder::default(),
                     details: GraphStateRequest { 
-                        x_axis: AxisData::Time, 
-                        y_axis: (vec![AxisData::StateOfChargePercent], Vec::new()), 
+                        x_axis: vec![AxisData { 
+                            data_type: AxisDataType::Time, 
+                            required_data_option: AxisDataOptions::Sample,
+                            additional_data_options: Vec::new()
+                         }], 
+                        y_axis: (vec![ 
+                            AxisData { 
+                                data_type: AxisDataType::StateOfChargePercent, 
+                                required_data_option: AxisDataOptions::Average,
+                                additional_data_options: vec![AxisDataOptions::Minimum, AxisDataOptions::Maximum, AxisDataOptions::Sample], 
+                            }],
+                            Vec::new()), 
                         start_time: PrimitiveDateTime::new(date!(2022-01-01), time!(0:00)).assume_utc().unix_timestamp(),
                         end_time: PrimitiveDateTime::new(date!(2023-06-01), time!(0:00)).assume_utc().unix_timestamp(), 
                         resolution: Resolution::OneDay,
@@ -89,7 +98,12 @@ impl Component for GraphStateHolder {
                     }
                 )
             }
-            GraphStateHolderMessage::RequestNewData => {
+            GraphStateHolderMessage::ParseComplete(name) => {
+                let message = SimpleMessageProperties { 
+                    class: AttrValue::from("notification"), 
+                    message:  AttrValue::from(format!("{} parsing complete.", name)),
+                };
+                self.app_state.notification_callback.clone().expect("Notification callback must be set").emit(message);
                 bindings::retrieve_solar_data(serde_json::to_string(&self.state.details).unwrap())
             },
         }
@@ -119,7 +133,12 @@ impl Component for GraphStateHolder {
 
         if let Some(element) = self.node_ref.cast::<HtmlElement>() {
             let on_new_data_available = ctx.link().callback(|e: Event| {
-                Self::Message::RequestNewData
+                let casted_event = e.dyn_ref::<CustomEvent>().unwrap_throw();
+                let payload = casted_event.detail();
+
+                let file_name = payload.as_string();
+
+                Self::Message::ParseComplete(file_name.unwrap_throw())
             });
 
             let listener = EventListener::new(
