@@ -83,8 +83,8 @@ pub struct ThemeData {
     pub theme_graph_border: Color,
 }
 
-impl From<Color> for RGBColor {
-    fn from(value: Color) -> Self {
+impl From<&Color> for RGBColor {
+    fn from(value: &Color) -> Self {
         RGBColor(value.0, value.1, value.2)
     }
 }

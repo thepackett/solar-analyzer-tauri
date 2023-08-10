@@ -13,7 +13,7 @@ tracing = "0.1.37"
 tracing-wasm = "0.2.1"
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.34"
-web-sys = { version = "0.3.61", features = ["FileList", "File", "HtmlInputElement", "HtmlElement", "Event", "EventTarget", "CustomEvent"] }
+web-sys = { version = "0.3.61", features = ["FileList", "File", "HtmlInputElement", "HtmlElement", "Event", "EventTarget", "CustomEvent", "MouseEvent"] }
 yew = { version = "0.20.0", features = ["csr"] }
 serde-wasm-bindgen = "0.5.0"
 serde = "1.0.163"

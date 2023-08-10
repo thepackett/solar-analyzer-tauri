@@ -73,20 +73,20 @@ fn app() -> Html {
             <div class="main-layout">
                 <div class="main-content">
                     <Graph canvas_id={AttrValue::from("test")} canvas_container_id={AttrValue::from("test-container")}/>
-                    <div class={"information"}>
-                        <div class="graph-legend">
-                        <p>{"Graph Legend"}</p>
-                        </div>
-                        <div class="graph-markpoints">
-                            <p>{"Graph Markpoints"}</p>
-                        </div>
-                        <div class="graph-statistics">
-                            <p>{"Statistics"}</p>
-                        </div>
-                        <div class="control-hints">
-                            <p>{"Control Hints"}</p>
-                        </div>
-                    </div>
+                    // <div class={"information"}>
+                    //     <div class="graph-legend">
+                    //     <p>{"Graph Legend"}</p>
+                    //     </div>
+                    //     <div class="graph-markpoints">
+                    //         <p>{"Graph Markpoints"}</p>
+                    //     </div>
+                    //     <div class="graph-statistics">
+                    //         <p>{"Statistics"}</p>
+                    //     </div>
+                    //     <div class="control-hints">
+                    //         <p>{"Control Hints"}</p>
+                    //     </div>
+                    // </div>
                     <MessageBox ..message_box_props/>
                 </div>
                 <Sidebar>

@@ -178,6 +178,14 @@ export function resizeCanvas(canvasid, containerid) {
     setCanvasSize(canvasid, container.offsetWidth, container.offsetHeight);
 }
 
+export function getCanvasHeight(canvasid) {
+    return document.getElementById(canvasid).height
+}
+
+export function getCanvasWidth(canvasid) {
+    return document.getElementById(canvasid).width
+}
+
 export function setupCanvasEvents(canvasid, containerid) {
     //Resize event handling
     handlersMap.set(canvasid, function(e) {

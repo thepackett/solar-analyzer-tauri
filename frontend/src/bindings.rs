@@ -45,6 +45,12 @@ extern "C" {
     #[wasm_bindgen (js_name = resizeCanvas)]
     pub fn resize_canvas(canvas_id: String, container_id: String);
 
+    #[wasm_bindgen (js_name = getCanvasHeight)]
+    pub fn get_canvas_height(canvas_id: String) -> i32;
+
+    #[wasm_bindgen (js_name = getCanvasWidth)]
+    pub fn get_canvas_width(canvas_id: String) -> i32;
+
     #[wasm_bindgen (js_name = setupCanvasEvents)]
     pub fn setup_canvas_events(canvas_id: String, container_id: String);
 
