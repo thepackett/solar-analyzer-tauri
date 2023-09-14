@@ -1,5 +1,6 @@
+use thiserror::Error;
 use wasm_bindgen::prelude::*;
-use web_sys::File;
+use web_sys::{File, Element};
 
 use crate::component::visual::theme_data::{ThemeData, Color};
 
@@ -59,6 +60,12 @@ extern "C" {
 
     #[wasm_bindgen (js_name = retrieveSolarData)]
     pub fn retrieve_solar_data(json_string: String);
+
+    #[wasm_bindgen (js_name = setupGraphDatePicker)]
+    pub fn setup_graph_date_picker(picker_id: String);
+
+    #[wasm_bindgen (js_name = teardownGraphDatePicker)]
+    pub fn teardown_graph_date_picker(picker_id: String);
 }
 
 #[derive(thiserror::Error, Debug, Clone)]
@@ -142,4 +149,21 @@ impl Theme {
             Theme::Light => "light".to_owned(),
         }
     }
+}
+
+#[derive(Error, Debug)]
+pub enum GetRootError {
+    #[error("Could not get the window.")]
+    NoWindow,
+    #[error("Could not get the document.")]
+    NoDocument,
+    #[error("Could not get the root element.")]
+    NoRoot,
+}
+
+pub fn get_root() -> Result<Element, GetRootError> {
+    let root = web_sys::window().ok_or(GetRootError::NoWindow)?
+        .document().ok_or(GetRootError::NoDocument)?
+        .document_element().ok_or(GetRootError::NoRoot)?;
+    Ok(root)
 }

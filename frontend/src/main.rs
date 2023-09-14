@@ -1,15 +1,16 @@
 mod component;
 mod bindings;
 mod app_state;
+mod component_channel;
 
-use component::message_handling::message_box::MessageBoxProperties;
+use component::message_handling::{message_box::MessageBoxProperties, simple_message::SimpleMessageProperties};
 use tracing::{event, Level};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 
-use crate::{component::{file_handling::file_select::FileSelect, message_handling::message_box::MessageBox, visual::{sidebar::Sidebar, sidemenu::Sidemenu, svg::{cog::Cog, file_upload::FileUpload}}, control::{switch::{Switch, SwitchProperties}, button::{Button, ButtonProperties}}, graph_handling::{graph::Graph, graph_state::GraphStateHolder}}, app_state::AppStateHolder, bindings::{Theme, remove_classes, add_classes, toggle_classes}};
+use crate::{component::{file_handling::file_select::{FileSelect, FileSelectProperties}, message_handling::message_box::MessageBox, visual::{sidebar::Sidebar, sidemenu::Sidemenu, svg::{cog::Cog, file_upload::FileUpload}}, control::{switch::{Switch, SwitchProperties}, button::{Button, ButtonProperties}}, graph_handling::graph::Graph}, bindings::{Theme, remove_classes, add_classes, toggle_classes}, component_channel::ComponentChannel};
 
 fn main() {
     bindings::set_detected_theme();
@@ -20,10 +21,17 @@ fn main() {
 
 #[function_component(App)]
 fn app() -> Html {
+    let (notification_tx, notification_rx) 
+        = ComponentChannel::get(crossbeam::channel::bounded::<SimpleMessageProperties>(30));
 
-    let message_box_props = MessageBoxProperties{
+    let message_box_props = MessageBoxProperties {
         class: AttrValue::from("MessageBoxClassName"),
         queue_capacity: 30,
+        message_rx: notification_rx.clone(),
+    };
+
+    let file_select_props = FileSelectProperties {
+        notification_tx: notification_tx.clone()
     };
 
     let theme_switch_props = SwitchProperties{
@@ -68,11 +76,11 @@ fn app() -> Html {
     };
 
     html! {
-        <AppStateHolder>
-        <GraphStateHolder>
+        // <AppStateHolder>
+        // <GraphStateHolder>
             <div class="main-layout">
                 <div class="main-content">
-                    <Graph canvas_id={AttrValue::from("test")} canvas_container_id={AttrValue::from("test-container")}/>
+                    <Graph canvas_id={AttrValue::from("test")} canvas_container_id={AttrValue::from("test-container")} notification_tx={notification_tx.clone()}/>
                     // <div class={"information"}>
                     //     <div class="graph-legend">
                     //     <p>{"Graph Legend"}</p>
@@ -87,6 +95,7 @@ fn app() -> Html {
                     //         <p>{"Control Hints"}</p>
                     //     </div>
                     // </div>
+                    <Graph canvas_id={AttrValue::from("test2")} canvas_container_id={AttrValue::from("test-container2")} notification_tx={notification_tx.clone()}/>
                     <MessageBox ..message_box_props/>
                 </div>
                 <Sidebar>
@@ -101,11 +110,11 @@ fn app() -> Html {
                     </Button>
                     <Sidemenu class="file-upload-menu">
                         <p>{"Side menu 2!"}</p>
-                        <FileSelect/>
+                        <FileSelect ..file_select_props/>
                     </Sidemenu>
                 </Sidebar>
             </div>
-        </GraphStateHolder>
-        </AppStateHolder>
+        // </GraphStateHolder>
+        // </AppStateHolder>
     }
 }

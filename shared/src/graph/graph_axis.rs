@@ -41,6 +41,22 @@ impl AxisDataType {
             AxisDataType::Custom(s) => todo!(),
         }
     }
+
+    pub fn get_unit(&self) -> &str {
+        match self {
+            AxisDataType::Time => "Time",
+            AxisDataType::BatteryVoltage
+            | AxisDataType::CellVoltage(_) 
+            | AxisDataType::ControllerPanelVoltage(_) => "Voltage",
+            AxisDataType::BatteryAmps 
+            | AxisDataType::ControllerAmps(_) => "Amps",
+            AxisDataType::SolarWatts 
+            | AxisDataType::LoadWatts => "Watts",
+            AxisDataType::StateOfChargePercent => "Percent",
+            AxisDataType::ControllerTemperatureF(_) => "°Fahrenheit",
+            AxisDataType::Custom(s) => todo!(),
+        }
+    }
 }
 
 pub enum AxisZoom {

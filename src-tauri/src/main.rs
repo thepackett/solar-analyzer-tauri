@@ -5,13 +5,17 @@
 
 use std::sync::{Mutex, OnceLock};
 
-use shared::{parse::{live_data::LiveData, stored_data::StoredData, traits::TryParse}, solar_data::{storage::DataStorage, line::DataLine}, graph::{graph_axis::{LineSeriesHolder, LineSeriesData, AxisDataType, AxisDataOptions, LineSeriesAxisData}, graph_state_request::{GraphStateRequest, Resolution}}};
+use shared::{parse::{live_data::LiveData, stored_data::StoredData, traits::TryParse, utils::ParseCompleteReturnValue}, solar_data::{storage::DataStorage, line::DataLine, controllers::AvailableControllers, cell::AvailableCells, value::DataValue}, graph::{graph_axis::{LineSeriesHolder, LineSeriesData, AxisDataType, AxisDataOptions, LineSeriesAxisData}, graph_state_request::{GraphStateRequest, Resolution}}};
 use tauri::{AppHandle, Manager};
 
 static DATA: OnceLock<Mutex<DataStorage>> = OnceLock::new();
+static AVAILABLE_CELLS: OnceLock<Mutex<AvailableCells>> = OnceLock::new();
+static AVAILABLE_CONTROLLERS: OnceLock<Mutex<AvailableControllers>> = OnceLock::new();
 
 fn main() {
     DATA.get_or_init(|| {Mutex::from(DataStorage::default())}); 
+    AVAILABLE_CELLS.get_or_init(|| {Mutex::from(AvailableCells::default())});
+    AVAILABLE_CONTROLLERS.get_or_init(|| {Mutex::from(AvailableControllers::default())});
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![parse_solar_data, retrieve_solar_data])
@@ -23,6 +27,8 @@ fn main() {
 fn parse_solar_data(name: String, data: String, app: AppHandle) {
     let mut live_data = LiveData::default();
     let mut stored_data = StoredData::default();
+    let mut controller_ids = AvailableControllers::default();
+    let mut cell_ids = AvailableCells::default();
     for line in data.split('\r') {
         //file string returned by javascript uses carriage return newline delimeters for some reason...
         let whole_line = line.to_owned();
@@ -30,6 +36,26 @@ fn parse_solar_data(name: String, data: String, app: AppHandle) {
         let live_data_data_line = live_data.try_parse(&line);
         let stored_data_data_line = stored_data.try_parse(&line);
         if let Ok(good_data_line) = live_data_data_line {
+          good_data_line.line.iter().for_each(|datavalue| {
+            match datavalue {
+              DataValue::CellVoltage { cell, voltage: _ } => {
+                _ = cell_ids.insert(*cell);
+              },
+              DataValue::ControllerPanelVoltage { controller, voltage: _ } => {
+                _ = controller_ids.insert(*controller);
+              },
+              DataValue::ControllerBatteryVoltage { controller, voltage: _ } => {
+                _ = controller_ids.insert(*controller);
+              },
+              DataValue::ControllerAmps { controller, amps: _ } => {
+                _ = controller_ids.insert(*controller);
+              },
+              DataValue::ControllerTemperatureF { controller, temperature: _ } => {
+                _ = controller_ids.insert(*controller);
+              },
+              _ => {}
+            }
+          });
           live_data.data.push_data_line(good_data_line);
         } 
         if let Ok(good_data_line) = stored_data_data_line {
@@ -39,11 +65,20 @@ fn parse_solar_data(name: String, data: String, app: AppHandle) {
     let mut combined_data = DataStorage::default();
     combined_data.combine_data(&live_data.data);
     combined_data.combine_data(&stored_data.data);
-    println!("Parsing complete. Min date = {}", combined_data.data.first().unwrap().unix_time);
-    let mut guard = DATA.get().unwrap().lock().unwrap();
-    guard.combine_data(&combined_data);
-    //println!("{:#?}", combined_data);
-    app.emit_all("solar_parse_complete", name).expect("Failed to emit event");
+    let mut data_guard = DATA.get().expect("Value set at program init").lock().unwrap();
+    data_guard.combine_data(&combined_data);
+    let mut cell_guard = AVAILABLE_CELLS.get().expect("Value set at program init").lock().unwrap();
+    cell_guard.combine(&cell_ids);
+    let mut controller_guard = AVAILABLE_CONTROLLERS.get().expect("Value set at program init").lock().unwrap();
+    controller_guard.combine(&controller_ids);
+    let payload = ParseCompleteReturnValue { 
+      name, 
+      cell_ids: cell_guard.clone(),
+      controller_ids: controller_guard.clone(),
+    };
+    let payload = serde_json::to_string(&payload).unwrap();
+
+    app.emit_all("solar_parse_complete", payload).expect("Failed to emit event");
 }
 
 
@@ -110,10 +145,10 @@ fn retrieve_solar_data(graph_state_request: String, app: AppHandle) {
     });
     container
   };
-  series_data.series.iter().for_each(|x| {
-    println!("Series name: {}, Data Points: {}", x.name.clone(), x.data_points.len());
-  });
-  let line_series_holder = serde_json::to_string(&series_data).unwrap();
+  // series_data.series.iter().for_each(|x| {
+  //   println!("Series name: {}, Data Points: {}", x.name.clone(), x.data_points.len());
+  // });
+  let line_series_holder = format!("{}\\{}", serde_json::to_string(&series_data).unwrap(), graph_state_request.graph_id);
   app.emit_all("data_request_complete", line_series_holder).expect("Failed to emit event");
 }
 
@@ -274,7 +309,7 @@ where
       series_data_maximum
     },
   };
-  println!("Processed axis has {} elements", processed_axis_data.len());
+  // println!("Processed axis has {} elements", processed_axis_data.len());
   processed_axis_data
 }
 
@@ -323,3 +358,4 @@ fn generage_series_name(x_axis_data_type: &AxisDataType, x_axis_option: &AxisDat
   };
   name
 }
+

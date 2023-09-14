@@ -1,3 +1,6 @@
+use crate::solar_data::cell::AvailableCells;
+use crate::solar_data::controllers::AvailableControllers;
+
 use super::parse_error::ParseError;
 use super::version::Version;
 
@@ -41,4 +44,11 @@ pub fn convert_year(last_two_year: u8) -> i32 {
             current_time.year() - (current_time.year() % 100) + last_two
         }
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ParseCompleteReturnValue {
+    pub name: String,
+    pub cell_ids: AvailableCells,
+    pub controller_ids: AvailableControllers,
 }

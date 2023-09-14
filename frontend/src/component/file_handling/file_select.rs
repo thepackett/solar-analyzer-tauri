@@ -1,20 +1,20 @@
-use std::rc::Rc;
-
 use web_sys::{HtmlInputElement, FileList};
 use yew::prelude::*;
 
-use crate::{bindings, app_state::AppState, component::message_handling::simple_message::SimpleMessageProperties};
+use crate::{bindings, component::message_handling::simple_message::SimpleMessageProperties, component_channel::ComponentChannelTx};
 
 pub struct FileSelect {
-    app_state: Rc<AppState>,
-    _context_handle: ContextHandle<Rc<AppState>>,
+    // app_state: Rc<AppState>,
+    // _context_handle: ContextHandle<Rc<AppState>>,
 }
 
 #[derive(Properties, PartialEq)]
-pub struct FileSelectProperties {}
+pub struct FileSelectProperties {
+    pub notification_tx: ComponentChannelTx<SimpleMessageProperties>,
+}
 
 pub enum FileSelectMessage {
-    ContextChanged(Rc<AppState>),
+    // ContextChanged(Rc<AppState>),
     FileHandlingComplete((Vec<String>, Vec<bindings::ReadFileError>)),
 }
 
@@ -22,33 +22,30 @@ impl Component for FileSelect {
     type Message = FileSelectMessage;
     type Properties = FileSelectProperties;
 
-    fn create(ctx: &Context<Self>) -> Self {
-        let (app_state, _context_handle) = 
-            ctx.link().context::<Rc<AppState>>(ctx.link().callback(FileSelectMessage::ContextChanged))
-            .expect("AppState context must be set for FileSelect to function.");
-
-        Self { app_state: app_state, _context_handle: _context_handle }
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self {}
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            FileSelectMessage::ContextChanged(app_state) => {
-                self.app_state = app_state.clone();
-            }
             FileSelectMessage::FileHandlingComplete((good, failed)) => {
                 if good.len() > 0 {
                     let message = SimpleMessageProperties { 
                         class: AttrValue::from("notification"), 
                         message: AttrValue::from(format!("Parsing {} new file{}.", good.len(), if good.len() == 1 {""} else {"s"})), 
                     };
-                    self.app_state.notification_callback.clone().expect("Notification callback must be set").emit(message);
+                    if let Err(e) = ctx.props().notification_tx.try_send(message) {
+                        web_sys::console::error_1(&wasm_bindgen::JsValue::from_str(e.to_string().as_str()));
+                    };
                 }
                 failed.into_iter().for_each(|failure| {
                     let error = SimpleMessageProperties { 
                         class: AttrValue::from("error"), 
                         message: AttrValue::from(failure.to_string()), 
                     };
-                    self.app_state.notification_callback.clone().expect("Notification callback must be set").emit(error);
+                    if let Err(e) = ctx.props().notification_tx.try_send(error) {
+                        web_sys::console::error_1(&wasm_bindgen::JsValue::from_str(e.to_string().as_str()));
+                    };
                 });
             },
         }

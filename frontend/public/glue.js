@@ -6,6 +6,7 @@ const emit = window.__TAURI__.event.emit
 const listen = window.__TAURI__.event.listen
 const handlersMap = new Map()
 const intervalMap = new Map()
+const litepickerMap = new Map()
 
 
 // invoke('my_custom_command_name')
@@ -18,13 +19,16 @@ const intervalMap = new Map()
 
 //Set up listeners that will receive tauri events and emit DOM events
 const unlisten = await listen('solar_parse_complete', (event) => {
-    console.log("recieved solar_parse_complete event");
-    document.getElementById("graph_state_holder").dispatchEvent(new CustomEvent("solar_parse_complete", {detail: event.payload}));
+    // console.log("recieved solar_parse_complete event");
+    document.documentElement.dispatchEvent(new CustomEvent("solar_parse_complete", {detail: event.payload}));
 });
 
 const unlisten2 = await listen("data_request_complete", (event) => {
-    console.log("recieved data_request_complete event");
-    document.getElementById("graph_state_holder").dispatchEvent(new CustomEvent("data_request_complete", {detail: event.payload}));
+    // console.log("recieved data_request_complete event");
+    let graph_name = event.payload.substring(event.payload.lastIndexOf('\\') + 1, event.payload.length);
+    let data = event.payload.substring(0, event.payload.lastIndexOf('\\'));
+    // console.log("data_request_complete_" + graph_name);
+    document.documentElement.dispatchEvent(new CustomEvent("data_request_complete_" + graph_name, {detail: data}));
 });
 
 
@@ -34,7 +38,7 @@ export function retrieveSolarData(json_string) {
 
 export function readFile(file) {
     if(!(file.type == "text/csv")){
-        console.log("File type is not text/csv, skipping...");
+        // console.log("File type is not text/csv, skipping...");
         throw "InvalidFileType|" + file.name;
     }
     file.text()
@@ -189,7 +193,7 @@ export function getCanvasWidth(canvasid) {
 export function setupCanvasEvents(canvasid, containerid) {
     //Resize event handling
     handlersMap.set(canvasid, function(e) {
-        console.log("resize event called");
+        // console.log("resize event called");
         let container = document.getElementById(containerid);
         if(container == null){
             return;
@@ -214,4 +218,15 @@ export function teardownCanvasEvents(canvasid) {
     handlersMap.delete(canvasid);
     window.clearInterval(intervalMap.get(canvasid));
     intervalMap.delete(canvasid);
+}
+
+export function setupGraphDatePicker(pickerid) {
+    litepickerMap.set(pickerid, new Litepicker({
+        element: document.getElementById(pickerid),
+        singleMode: false,
+    }));
+}
+
+export function teardownGraphDatePicker(pickerid) {
+    litepickerMap.delete(pickerid);
 }
