@@ -5,7 +5,7 @@
 
 use std::sync::{Mutex, OnceLock};
 
-use shared::{parse::{live_data::LiveData, stored_data::StoredData, traits::TryParse, utils::ParseCompleteReturnValue}, solar_data::{storage::DataStorage, line::DataLine, controllers::AvailableControllers, cell::AvailableCells, value::DataValue}, graph::{graph_axis::{LineSeriesHolder, LineSeriesData, AxisDataType, AxisDataOptions, LineSeriesAxisData}, graph_state_request::{GraphStateRequest, Resolution}}};
+use shared::{parse::{live_data::LiveData, stored_data::StoredData, traits::TryParse, utils::ParseCompleteReturnValue}, solar_data::{storage::DataStorage, line::DataLine, controllers::AvailableControllers, cell::AvailableCells, value::DataValue}, graph::{graph_axis::{LineSeriesHolder, LineSeriesData, AxisDataType, AxisDataOption, LineSeriesAxisData}, graph_state_request::{GraphStateRequest, Resolution}}};
 use tauri::{AppHandle, Manager};
 
 static DATA: OnceLock<Mutex<DataStorage>> = OnceLock::new();
@@ -90,58 +90,58 @@ fn retrieve_solar_data(graph_state_request: String, app: AppHandle) {
   let graph_state_request = serde_json::from_str::<GraphStateRequest>(&graph_state_request).unwrap();
   let data_guard = DATA.get().unwrap().lock().unwrap();
   let slice = &data_guard.data[
-    data_guard.data.binary_search(&DataLine::from(graph_state_request.start_time)).unwrap_or(0)..
-    data_guard.data.binary_search(&DataLine::from(graph_state_request.end_time)).unwrap_or(data_guard.len())
+    match data_guard.data.binary_search(&DataLine::from(graph_state_request.start_time)) {
+      Ok(index) => index,
+      Err(index) => index,
+    }..
+    match data_guard.data.binary_search(&DataLine::from(graph_state_request.end_time)) {
+      Ok(index) => index,
+      Err(index) => index,
+    }
   ]; 
 
   let series_data = {
     let mut container = LineSeriesHolder::default();
     let resolution = graph_state_request.resolution;
 
-    graph_state_request.x_axis.iter().cloned().for_each(|x_axis_data| {
-      std::iter::once(x_axis_data.required_data_option).chain(x_axis_data.additional_data_options.into_iter()).for_each(|x_axis_option| {
-        graph_state_request.y_axis.0.iter().cloned().for_each(|y_primary| {
-          std::iter::once(y_primary.required_data_option).chain(y_primary.additional_data_options.into_iter()).for_each(|y_primary_axis_option| {
-            //We know the x axis data type and current option, and we know the y_axis data type and current option. We have all we need to collect data.
-            let data = get_line_series_data(&slice, &resolution, &x_axis_data.data_type, &x_axis_option, &y_primary.data_type, &y_primary_axis_option);
-            let name = generage_series_name(
-              &x_axis_data.data_type, 
-              &x_axis_option, 
-              &y_primary.data_type, 
-              &y_primary_axis_option);
+    graph_state_request.x_axis.requests.iter().cloned().for_each(|(x_data_type, x_data_option)| {
+      graph_state_request.y_axis.0.requests.iter().cloned().for_each(|(y_data_type, y_data_option)| {
+        //We know the x axis data type and current option, and we know the y_axis data type and current option. We have all we need to collect data.
+        let data = get_line_series_data(&slice, &resolution, &x_data_type, &x_data_option, &y_data_type, &y_data_option);
+        let name = generage_series_name(
+          &x_data_type, 
+          &x_data_option, 
+          &y_data_type, 
+          &y_data_option);
 
-            container.series.push(
-              LineSeriesData { 
-                name: name, 
-                data_points: data, 
-                x_axis: LineSeriesAxisData { data_type: x_axis_data.data_type.clone(), data_option: x_axis_option.clone() }, 
-                y_axis: LineSeriesAxisData { data_type: y_primary.data_type.clone(), data_option: y_primary_axis_option },
-              });
-          })
-        });
-
-        graph_state_request.y_axis.1.iter().cloned().for_each(|y_secondary| {
-          std::iter::once(y_secondary.required_data_option).chain(y_secondary.additional_data_options.into_iter()).for_each(|y_secondary_axis_option| {
-            //We know the x axis data type and current option, and we know the y_axis data type and current option. We have all we need to collect data.
-            let data = get_line_series_data(&slice, &resolution, &x_axis_data.data_type, &x_axis_option, &y_secondary.data_type, &y_secondary_axis_option);
-            let name = generage_series_name(
-              &x_axis_data.data_type, 
-              &x_axis_option, 
-              &y_secondary.data_type, 
-              &y_secondary_axis_option);
-
-
-            container.secondary_series.push(
-              LineSeriesData { 
-                name: name, 
-                data_points: data, 
-                x_axis: LineSeriesAxisData { data_type: x_axis_data.data_type.clone(), data_option: x_axis_option.clone() }, 
-                y_axis: LineSeriesAxisData { data_type: y_secondary.data_type.clone(), data_option: y_secondary_axis_option },
-              });
-          })
-        });
-
+        container.series.push(
+          LineSeriesData { 
+            name: name, 
+            data_points: data, 
+            x_axis: LineSeriesAxisData { data_type: x_data_type.clone(), data_option: x_data_option.clone() }, 
+            y_axis: LineSeriesAxisData { data_type: y_data_type, data_option: y_data_option },
+          });
       });
+
+      //Secondary y axis
+      graph_state_request.y_axis.1.requests.iter().cloned().for_each(|(y_data_type, y_data_option)| {
+        //We know the x axis data type and current option, and we know the y_axis data type and current option. We have all we need to collect data.
+        let data = get_line_series_data(&slice, &resolution, &x_data_type, &x_data_option, &y_data_type, &y_data_option);
+        let name = generage_series_name(
+          &x_data_type, 
+          &x_data_option, 
+          &y_data_type, 
+          &y_data_option);
+
+
+        container.secondary_series.push(
+          LineSeriesData { 
+            name: name, 
+            data_points: data, 
+            x_axis: LineSeriesAxisData { data_type: x_data_type.clone(), data_option: x_data_option.clone() }, 
+            y_axis: LineSeriesAxisData { data_type: y_data_type, data_option: y_data_option },
+          });
+        });
     });
     container
   };
@@ -153,8 +153,8 @@ fn retrieve_solar_data(graph_state_request: String, app: AppHandle) {
 }
 
 
-fn get_line_series_data(data: &[DataLine], resolution: &Resolution, x_axis_data_type: &AxisDataType, x_axis_data_option: &AxisDataOptions, 
-                          y_axis_data_type: &AxisDataType, y_axis_data_option: &AxisDataOptions) -> Vec<(f64, f64)> {
+fn get_line_series_data(data: &[DataLine], resolution: &Resolution, x_axis_data_type: &AxisDataType, x_axis_data_option: &AxisDataOption, 
+                          y_axis_data_type: &AxisDataType, y_axis_data_option: &AxisDataOption) -> Vec<(f64, f64)> {
   let data = data.iter().cloned().filter_map(|line| {
     let time = line.unix_time;
     let x = line.calculate_axis_data(x_axis_data_type.clone());
@@ -183,27 +183,27 @@ fn get_line_series_data(data: &[DataLine], resolution: &Resolution, x_axis_data_
 
 
 
-fn process_axis_data<T>(mut data: T, resolution: &Resolution, axis_option: &AxisDataOptions) -> Vec<f64> 
+fn process_axis_data<T>(mut data: T, resolution: &Resolution, axis_option: &AxisDataOption) -> Vec<f64> 
 where
   T: Iterator<Item = (i64, f64)>
 {
   let time_interval = resolution.get_timestamp_offset();
 
   let processed_axis_data = match axis_option {
-    AxisDataOptions::Sample => {
-      let mut last: i64 = 0;
-      let sampled_data = data.into_iter().filter_map(|current| {
-        if current.0 - last >= time_interval {
-          //Set the last value to the start of the current time "bucket"
-          last = current.0 - current.0 % time_interval;
-          Some(current.1)
-        } else {
-          None
-        }
-      }).collect::<Vec<_>>();
-      sampled_data
-    },
-    AxisDataOptions::Average => {
+    // AxisDataOptions::Sample => {
+    //   let mut last: i64 = 0;
+    //   let sampled_data = data.into_iter().filter_map(|current| {
+    //     if current.0 - last >= time_interval {
+    //       //Set the last value to the start of the current time "bucket"
+    //       last = current.0 - current.0 % time_interval;
+    //       Some(current.1)
+    //     } else {
+    //       None
+    //     }
+    //   }).collect::<Vec<_>>();
+    //   sampled_data
+    // },
+    AxisDataOption::Average => {
       let series_data_average: Vec<f64> = if let Some(first) = data.nth(0) {
         let mut storage = vec![first];
         let mut average_data = data.filter_map(|current| {
@@ -234,7 +234,7 @@ where
       };
       series_data_average
     },
-    AxisDataOptions::Minimum => {
+    AxisDataOption::Minimum => {
       let series_data_minimum: Vec<f64> = if let Some(first) = data.nth(0) {
         let mut storage = vec![first];
         let mut minimum_data = data.filter_map(|current| {
@@ -271,7 +271,7 @@ where
       };
       series_data_minimum
     },
-    AxisDataOptions::Maximum => {
+    AxisDataOption::Maximum => {
       let series_data_maximum: Vec<f64> = if let Some(first) = data.nth(0) {
         let mut storage = vec![first];
         let mut maximum_data = data.filter_map(|current| {
@@ -313,23 +313,23 @@ where
   processed_axis_data
 }
 
-fn generage_series_name(x_axis_data_type: &AxisDataType, x_axis_option: &AxisDataOptions, y_axis_data_type: &AxisDataType, y_axis_option: &AxisDataOptions) -> String {
+fn generage_series_name(x_axis_data_type: &AxisDataType, x_axis_option: &AxisDataOption, y_axis_data_type: &AxisDataType, y_axis_option: &AxisDataOption) -> String {
   let name_prefix = if *x_axis_data_type != AxisDataType::Time {
     match x_axis_option {
-      AxisDataOptions::Sample => format!("{}", x_axis_data_type.get_name()),
-      AxisDataOptions::Average => format!("{} {}", x_axis_data_type.get_name(), "Avg"),
-      AxisDataOptions::Minimum => format!("{} {}", x_axis_data_type.get_name(), "Min"),
-      AxisDataOptions::Maximum => format!("{} {}", x_axis_data_type.get_name(), "Max"),
+      // AxisDataOptions::Sample => format!("{}", x_axis_data_type.get_name()),
+      AxisDataOption::Average => format!("{} {}", x_axis_data_type.get_name(), "Avg"),
+      AxisDataOption::Minimum => format!("{} {}", x_axis_data_type.get_name(), "Min"),
+      AxisDataOption::Maximum => format!("{} {}", x_axis_data_type.get_name(), "Max"),
     }
   } else {
     "".to_string()
   };
   let name_suffix = if *y_axis_data_type != AxisDataType::Time {
     match y_axis_option {
-      AxisDataOptions::Sample => format!("{}", y_axis_data_type.get_name()),
-      AxisDataOptions::Average => format!("{} {}", y_axis_data_type.get_name(), "Avg"),
-      AxisDataOptions::Minimum => format!("{} {}", y_axis_data_type.get_name(), "Min"),
-      AxisDataOptions::Maximum => format!("{} {}", y_axis_data_type.get_name(), "Max"),
+      // AxisDataOptions::Sample => format!("{}", y_axis_data_type.get_name()),
+      AxisDataOption::Average => format!("{} {}", y_axis_data_type.get_name(), "Avg"),
+      AxisDataOption::Minimum => format!("{} {}", y_axis_data_type.get_name(), "Min"),
+      AxisDataOption::Maximum => format!("{} {}", y_axis_data_type.get_name(), "Max"),
     }
   } else {
     "".to_string()

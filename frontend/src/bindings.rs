@@ -62,7 +62,7 @@ extern "C" {
     pub fn retrieve_solar_data(json_string: String);
 
     #[wasm_bindgen (js_name = setupGraphDatePicker)]
-    pub fn setup_graph_date_picker(picker_id: String);
+    pub fn setup_graph_date_picker(picker_id: String, start_time: i64, end_time: i64);
 
     #[wasm_bindgen (js_name = teardownGraphDatePicker)]
     pub fn teardown_graph_date_picker(picker_id: String);

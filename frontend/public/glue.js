@@ -220,10 +220,21 @@ export function teardownCanvasEvents(canvasid) {
     intervalMap.delete(canvasid);
 }
 
-export function setupGraphDatePicker(pickerid) {
+export function setupGraphDatePicker(pickerid, start_time, end_time) {
+    let start_date = new Date(Number(start_time) * 1000);
+    let end_date = new Date(Number(end_time) * 1000);
     litepickerMap.set(pickerid, new Litepicker({
         element: document.getElementById(pickerid),
         singleMode: false,
+        startDate: start_date,
+        endDate: end_date,
+        setup: (picker) => {
+            picker.on("selected", (start_date, end_date) => {
+                document.documentElement.dispatchEvent(
+                    new CustomEvent(pickerid + "_selected", {detail: "" + BigInt(start_date.getTime()/1000) + ":" + BigInt(end_date.getTime()/1000)})
+                );
+            })
+        },
     }));
 }
 

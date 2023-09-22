@@ -10,12 +10,12 @@ use std::ops::Range;
 use gloo_events::EventListener;
 use plotters::prelude::*;
 use plotters_canvas::CanvasBackend;
-use shared::{graph::{graph_axis::{AxisDataType, LineSeriesHolder}, graph_type::GraphType, graph_state_request::GraphStateRequest}, parse::utils::ParseCompleteReturnValue, solar_data::{cell::AvailableCells, controllers::AvailableControllers}};
+use shared::{graph::{graph_axis::{AxisDataType, LineSeriesHolder, AxisControlsRequest}, graph_type::GraphType, graph_state_request::GraphStateRequest}, parse::utils::ParseCompleteReturnValue, solar_data::{cell::AvailableCells, controllers::AvailableControllers}};
 use wasm_bindgen::{UnwrapThrowExt, JsCast};
 use web_sys::{HtmlElement, CustomEvent};
 use yew::prelude::*;
 
-use crate::{bindings::{setup_canvas_events, teardown_canvas_events, resize_canvas, get_theme_data, get_canvas_width, get_canvas_height, self, teardown_graph_date_picker, setup_graph_date_picker}, component::{visual::theme_data::ThemeData, message_handling::simple_message::SimpleMessageProperties, graph_handling::graph::{time_range_controls::TimeRangeSelector, x_axis_controls::{XAxisControlsRequest, XAxisControls}, secondary_y_axis_controls::{SecYAxisControls, SecYAxisControlsRequest}, y_axis_controls::{YAxisControls, YAxisControlsRequest}}}, component_channel::ComponentChannelTx};
+use crate::{bindings::{setup_canvas_events, teardown_canvas_events, resize_canvas, get_theme_data, get_canvas_width, get_canvas_height, self, teardown_graph_date_picker, setup_graph_date_picker}, component::{visual::theme_data::ThemeData, message_handling::simple_message::SimpleMessageProperties, graph_handling::graph::{time_range_controls::TimeRangeSelector, x_axis_controls::XAxisControls, y_axis_controls::YAxisControls, secondary_y_axis_controls::SecYAxisControls}}, component_channel::ComponentChannelTx};
 
 use self::time_range_controls::DateRange;
 
@@ -57,6 +57,10 @@ pub enum GraphMessage {
     ParseComplete(ParseCompleteReturnValue),
     NewData(LineSeriesHolder),
     NewDateRange(DateRange),
+    XAxisControlsUpdate(AxisControlsRequest),
+    YAxisControlsUpdate(AxisControlsRequest),
+    SecYAxisControlsUpdate(AxisControlsRequest),
+    UpdateGraphData,
 }
 
 
@@ -227,15 +231,45 @@ impl Component for Graph {
                 bindings::retrieve_solar_data(serde_json::to_string(&self.graph_state).unwrap())
             },
             GraphMessage::NewData(data) => {
+                // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("{:?}", &data).as_str()));
                 self.line_series = data;
                 self.previous_x_range = None;
                 self.previous_y_range = None;
                 self.previous_sec_y_range = None;
             },
             GraphMessage::NewDateRange(date_range) => {
-                todo!()
+                // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str("NewDateRange callback called"));
+                let update = date_range.start < self.graph_state.start_time || date_range.end > self.graph_state.end_time;
+                self.graph_state.start_time = date_range.start;
+                self.graph_state.end_time = date_range.end;
+                // if update {
+                    bindings::retrieve_solar_data(serde_json::to_string(&self.graph_state).unwrap())
+                // }
             },
-            
+            GraphMessage::XAxisControlsUpdate(new_x_axis) => {
+                let update = self.graph_state.x_axis != new_x_axis; 
+                self.graph_state.x_axis = new_x_axis;
+                if update {
+                    ctx.link().callback(|_| {GraphMessage::UpdateGraphData}).emit(());
+                }
+            },
+            GraphMessage::YAxisControlsUpdate(new_y_axis) => {
+                let update = self.graph_state.y_axis.0 != new_y_axis; 
+                self.graph_state.y_axis.0 = new_y_axis;
+                if update {
+                    ctx.link().callback(|_| {GraphMessage::UpdateGraphData}).emit(());
+                }
+            },
+            GraphMessage::SecYAxisControlsUpdate(new_sec_y_axis) => {
+                let update = self.graph_state.y_axis.1 != new_sec_y_axis; 
+                self.graph_state.y_axis.1 = new_sec_y_axis;
+                if update {
+                    ctx.link().callback(|_| {GraphMessage::UpdateGraphData}).emit(());
+                }
+            },
+            GraphMessage::UpdateGraphData => {
+                bindings::retrieve_solar_data(serde_json::to_string(&self.graph_state).unwrap())
+            },
         }
         true
     }
@@ -300,16 +334,16 @@ impl Component for Graph {
             Self::Message::NewDateRange(date_range)
         });
 
-        let onnewxaxisrequest = ctx.link().callback(|x_axis_controls_request: XAxisControlsRequest| {
-            GraphMessage::DrawGraph //Temporary until I implement more details
+        let onnewxaxisrequest = ctx.link().callback(|x_axis_controls_request: AxisControlsRequest| {
+            Self::Message::XAxisControlsUpdate(x_axis_controls_request)
         });
 
-        let onnewyaxisrequest = ctx.link().callback(|y_axis_controls_request: YAxisControlsRequest| {
-            GraphMessage::DrawGraph //Temporary until I implement more details
+        let onnewyaxisrequest = ctx.link().callback(|y_axis_controls_request: AxisControlsRequest| {
+            Self::Message::YAxisControlsUpdate(y_axis_controls_request)
         });
 
-        let onnewsecyaxisrequest = ctx.link().callback(|sec_y_axis_controls_request: SecYAxisControlsRequest| {
-            GraphMessage::DrawGraph //Temporary until I implement more details
+        let onnewsecyaxisrequest = ctx.link().callback(|sec_y_axis_controls_request: AxisControlsRequest| {
+            Self::Message::SecYAxisControlsUpdate(sec_y_axis_controls_request)
         });
 
         html!(
@@ -319,10 +353,10 @@ impl Component for Graph {
                     </canvas>
                 </div>
                 <div class="graph-controls">
-                    <TimeRangeSelector id={format!("{}_litepicker", self.canvas_id)} callback={onnewdaterange}/>
-                    <XAxisControls callback={onnewxaxisrequest} available_cells={self.available_cells.clone()} available_controllers={self.available_controllers.clone()} />
-                    <YAxisControls callback={onnewyaxisrequest} />
-                    <SecYAxisControls callback={onnewsecyaxisrequest} />
+                    <TimeRangeSelector current_date_range={DateRange {start: self.graph_state.start_time, end: self.graph_state.end_time}} id={format!("{}_litepicker", self.canvas_id)} callback={onnewdaterange}/>
+                    <XAxisControls current_state={self.graph_state.x_axis.clone()} callback={onnewxaxisrequest} available_cells={self.available_cells.clone()} available_controllers={self.available_controllers.clone()} />
+                    <YAxisControls current_state={self.graph_state.y_axis.0.clone()} callback={onnewyaxisrequest} available_cells={self.available_cells.clone()} available_controllers={self.available_controllers.clone()} />
+                    <SecYAxisControls current_state={self.graph_state.y_axis.1.clone()} callback={onnewsecyaxisrequest} available_cells={self.available_cells.clone()} available_controllers={self.available_controllers.clone()} />
                 </div>
             </div>
         )
@@ -374,7 +408,7 @@ impl Component for Graph {
         self.parse_complete_listener = Some(parse_listener);
 
         let on_new_data = ctx.link().callback(|e: Event| {
-            web_sys::console::info_1(&wasm_bindgen::JsValue::from_str("on_new_data callback called"));
+            // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str("on_new_data callback called"));
             let casted_event = e.dyn_ref::<CustomEvent>().unwrap_throw();
             let payload = casted_event.detail();
 

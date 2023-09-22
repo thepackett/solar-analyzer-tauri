@@ -14,7 +14,10 @@
     top: 50%;
     transform: translate(-50%, -50%);
     z-index: 999;
+    max-height: 80vh;
+    max-width: 80vw;
     background-color: #ffffff;
+    overflow: scroll;
 }
 
 .modal-close-button {

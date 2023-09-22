@@ -261,9 +261,9 @@ impl Graph {
         
         
 
-        let x_axis_formatter = match self.graph_state.x_axis.first() {
-            Some(axis_data) => {
-                match axis_data.data_type {
+        let x_axis_formatter = match self.graph_state.x_axis.requests.first() {
+            Some((data_type, data_option)) => {
+                match data_type {
                     AxisDataType::Time => {
                         time_axis_label_formatter
                     },
@@ -274,9 +274,9 @@ impl Graph {
             },
             None => other_axis_label_formatter,
         };
-        let y_axis_formatter = match self.graph_state.y_axis.0.first() {
-            Some(axis_data) => {
-                match axis_data.data_type {
+        let y_axis_formatter = match self.graph_state.y_axis.0.requests.first() {
+            Some((data_type, data_option)) => {
+                match data_type {
                     AxisDataType::Time => {
                         time_axis_label_formatter
                     },
@@ -287,9 +287,9 @@ impl Graph {
             },
             None => other_axis_label_formatter,
         };
-        let secondary_y_axis_formatter = match self.graph_state.y_axis.1.first() {
-            Some(axis_data) => {
-                match axis_data.data_type {
+        let secondary_y_axis_formatter = match self.graph_state.y_axis.1.requests.first() {
+            Some((data_type, _data_option)) => {
+                match data_type {
                     AxisDataType::Time => {
                         time_axis_label_formatter
                     },
@@ -301,21 +301,21 @@ impl Graph {
             None => other_axis_label_formatter,
         };
 
-        let x_axis_description = match self.graph_state.x_axis.first() {
-            Some(x_axis) => {
-                x_axis.data_type.get_unit()
+        let x_axis_description = match self.graph_state.x_axis.requests.first() {
+            Some((data_type, _data_option)) => {
+                data_type.get_unit().get_name()
             },
             None => "",
         };
-        let y_axis_description = match self.graph_state.y_axis.0.first() {
-            Some(y_axis) => {
-                y_axis.data_type.get_unit()
+        let y_axis_description = match self.graph_state.y_axis.0.requests.first() {
+            Some((data_type, _data_option)) => {
+                data_type.get_unit().get_name()
             },
             None => "",
         };
-        let secondary_y_axis_description = match self.graph_state.y_axis.1.first() {
-            Some(secondary_y_axis) => {
-                secondary_y_axis.data_type.get_unit()
+        let secondary_y_axis_description = match self.graph_state.y_axis.1.requests.first() {
+            Some((data_type, _data_option)) => {
+                data_type.get_unit().get_name()
             },
             None => "",
         };
@@ -341,8 +341,8 @@ impl Graph {
             .draw()?;
 
         //Draw and configure secondary axis, if it is present
-        match self.graph_state.y_axis.1.first() {
-            Some(_secondary_y_axis) => {
+        match self.graph_state.y_axis.1.requests.first() {
+            Some((data_type, data_option)) => {
                 chart.set_secondary_coord(x_axis_range, secondary_y_axis_range)
                     .configure_secondary_axes()
                     .y_desc(secondary_y_axis_description)
@@ -359,9 +359,9 @@ impl Graph {
     }
 
     pub fn get_graph_type(&self) -> GraphType {
-        match self.graph_state.x_axis.first() {
-            Some(x_axis) => {
-                match x_axis.data_type {
+        match self.graph_state.x_axis.requests.first() {
+            Some((data_type, _data_option)) => {
+                match data_type {
                     AxisDataType::Time => GraphType::XAxisLine,
                     _ => GraphType::XYScatter,
                 }

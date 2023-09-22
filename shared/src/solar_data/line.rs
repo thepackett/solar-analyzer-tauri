@@ -39,7 +39,8 @@ impl DataLine {
 
     pub fn calculate_axis_data(&self, axis: AxisDataType) -> Option<f64> {
         match axis {
-            AxisDataType::Time => Some(self.unix_time as f64),
+            AxisDataType::Time 
+            | AxisDataType::PeriodicTime => Some(self.unix_time as f64),
             AxisDataType::BatteryVoltage => {
               let search_result = self.search_data(&DataValue::BatteryVoltage(0.0)).cloned();
               match search_result {
@@ -139,7 +140,7 @@ impl DataLine {
                   None => None,
                 }
               },
-            AxisDataType::Custom(s) => todo!(),
+            // AxisDataType::Custom(s) => todo!(),
           }
     }
 
