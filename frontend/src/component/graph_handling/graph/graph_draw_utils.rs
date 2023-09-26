@@ -1,3 +1,5 @@
+use yew::Context;
+
 use crate::bindings::{get_canvas_width, get_canvas_height};
 
 use super::{Graph, graph_draw::{CHART_MARGIN_SIZE, CHART_LABEL_SIZE}};
@@ -15,13 +17,13 @@ pub fn other_axis_label_formatter(data: &f64) -> String {
 }
 
 impl Graph {
-    pub fn convert_local_x_y_to_graph_x_y(&self, x: f64, y: f64) -> (Option<f64>, Option<f64>) {
+    pub fn convert_local_x_y_to_graph_x_y(&self, ctx: &Context<Self>, x: f64, y: f64) -> (Option<f64>, Option<f64>) {
         let x = if x.is_finite() {
             match self.previous_x_range.clone() {
                 Some(x_range) => {
                     Some(
                         (x - CHART_MARGIN_SIZE as f64 - CHART_LABEL_SIZE as f64) 
-                        * ((x_range.end - x_range.start) / ((get_canvas_width(self.canvas_id.to_string()) as f64) - (CHART_MARGIN_SIZE * 2 + CHART_LABEL_SIZE) as f64))
+                        * ((x_range.end - x_range.start) / ((get_canvas_width(ctx.props().canvas_id.to_string()) as f64) - (CHART_MARGIN_SIZE * 2 + CHART_LABEL_SIZE) as f64))
                         + x_range.start
                     )
                 },
@@ -33,7 +35,7 @@ impl Graph {
                 Some(y_range) => {
                     Some(
                         (-y +CHART_MARGIN_SIZE as f64 + CHART_LABEL_SIZE as f64) 
-                        * ((y_range.end - y_range.start) / ((get_canvas_height(self.canvas_id.to_string()) as f64) - (CHART_MARGIN_SIZE * 2 + CHART_LABEL_SIZE * 2) as f64))
+                        * ((y_range.end - y_range.start) / ((get_canvas_height(ctx.props().canvas_id.to_string()) as f64) - (CHART_MARGIN_SIZE * 2 + CHART_LABEL_SIZE * 2) as f64))
                         + y_range.end
                     )
                 },

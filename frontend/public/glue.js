@@ -239,5 +239,8 @@ export function setupGraphDatePicker(pickerid, start_time, end_time) {
 }
 
 export function teardownGraphDatePicker(pickerid) {
-    litepickerMap.delete(pickerid);
+    if (litepickerMap.has(pickerid)) {
+        litepickerMap.get(pickerid).destroy();
+        litepickerMap.delete(pickerid);
+    }
 }

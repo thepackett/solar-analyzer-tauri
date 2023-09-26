@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use super::graph_state_request::Resolution;
 
-#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
+
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Default, Debug)]
 pub struct AxisControlsRequest {
     pub requests: Vec<(AxisDataType,AxisDataOption)>
 }
@@ -60,7 +62,7 @@ impl AxisDataType {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Debug)]
 pub enum DataUnit {
     Time,
     PeriodicTime,
@@ -117,4 +119,38 @@ pub struct LineSeriesData {
 pub struct LineSeriesAxisData {
     pub data_type: AxisDataType,
     pub data_option: AxisDataOption,
+}
+
+#[derive(PartialEq, Clone, Serialize, Deserialize)]
+pub struct AxisTimeRequest {
+    pub start: i64,
+    pub end: i64,
+    pub manual_resolution: Option<Resolution>,
+}
+
+impl AxisTimeRequest {
+    pub fn get_resolution(&self) -> Resolution {
+        match &self.manual_resolution {
+            Some(resolution) => resolution.clone(),
+            None => {
+                match self.end - self.start {
+                    0i64..=10800i64 => {   //Three hours
+                        Resolution::OneMinute
+                    },
+                    10801i64..=86400i64 => {    //One Day
+                        Resolution::FiveMinute
+                    },
+                    86401i64..=259200i64 => {   //Three Days
+                        Resolution::FifteenMinute
+                    },
+                    259201i64..=864000i64 => {   //10 Days
+                        Resolution::OneHour
+                    },
+                    _ => {
+                        Resolution::OneDay
+                    }
+                }
+            },
+        }
+    }
 }

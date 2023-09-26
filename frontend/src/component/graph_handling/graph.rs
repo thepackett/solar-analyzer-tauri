@@ -4,20 +4,17 @@ pub mod x_axis_controls;
 pub mod y_axis_controls;
 pub mod secondary_y_axis_controls;
 pub mod time_range_controls;
+pub mod graph_coordination;
 
 use std::ops::Range;
 
 use gloo_events::EventListener;
-use plotters::prelude::*;
-use plotters_canvas::CanvasBackend;
-use shared::{graph::{graph_axis::{AxisDataType, LineSeriesHolder, AxisControlsRequest}, graph_type::GraphType, graph_state_request::GraphStateRequest}, parse::utils::ParseCompleteReturnValue, solar_data::{cell::AvailableCells, controllers::AvailableControllers}};
+use shared::{graph::{graph_axis::{LineSeriesHolder, AxisControlsRequest, AxisTimeRequest}, graph_type::GraphType, graph_state_request::GraphStateRequest}, parse::utils::ParseCompleteReturnValue, solar_data::{cell::AvailableCells, controllers::AvailableControllers}};
 use wasm_bindgen::{UnwrapThrowExt, JsCast};
 use web_sys::{HtmlElement, CustomEvent};
 use yew::prelude::*;
 
-use crate::{bindings::{setup_canvas_events, teardown_canvas_events, resize_canvas, get_theme_data, get_canvas_width, get_canvas_height, self, teardown_graph_date_picker, setup_graph_date_picker}, component::{visual::theme_data::ThemeData, message_handling::simple_message::SimpleMessageProperties, graph_handling::graph::{time_range_controls::TimeRangeSelector, x_axis_controls::XAxisControls, y_axis_controls::YAxisControls, secondary_y_axis_controls::SecYAxisControls}}, component_channel::ComponentChannelTx};
-
-use self::time_range_controls::DateRange;
+use crate::{bindings, component::{message_handling::simple_message::SimpleMessageProperties, graph_handling::graph::{time_range_controls::TimeRangeSelector, x_axis_controls::XAxisControls, y_axis_controls::YAxisControls, secondary_y_axis_controls::SecYAxisControls}}, component_channel::ComponentChannelTx};
 
 
 pub struct Graph {
@@ -25,14 +22,12 @@ pub struct Graph {
     available_controllers: AvailableControllers,
     graph_state: GraphStateRequest,
     line_series: LineSeriesHolder,
-    canvas_id: AttrValue,
     // _context_handle: ContextHandle<Rc<GraphState>>,
     previous_mouse_input: Option<MouseInput>,
     previous_x_range: Option<Range<f64>>,
     previous_y_range: Option<Range<f64>>,
     previous_sec_y_range: Option<Range<f64>>,
     markpoints: Vec<(f64, f64)>,
-    periodic: Option<i64>,
     parse_complete_listener: Option<EventListener>,
     data_complete_listener: Option<EventListener>,
     pub canvas_node_ref: NodeRef,
@@ -56,7 +51,7 @@ pub enum GraphMessage {
     MouseExit,
     ParseComplete(ParseCompleteReturnValue),
     NewData(LineSeriesHolder),
-    NewDateRange(DateRange),
+    TimeControlsUpdate(AxisTimeRequest),
     XAxisControlsUpdate(AxisControlsRequest),
     YAxisControlsUpdate(AxisControlsRequest),
     SecYAxisControlsUpdate(AxisControlsRequest),
@@ -82,19 +77,17 @@ impl Component for Graph {
     type Properties = GraphProperties;
 
     fn create(ctx: &Context<Self>) -> Self {
-        setup_canvas_events(ctx.props().canvas_id.to_string(), ctx.props().canvas_container_id.to_string());
+        bindings::setup_canvas_events(ctx.props().canvas_id.to_string(), ctx.props().canvas_container_id.to_string());
 
         // let (graph_state, _context_handle) = 
         //     ctx.link().context::<Rc<GraphState>>(ctx.link().callback(Self::Message::ContextChanged))
         //     .expect("GraphState context must be set for Graph to function.");
-        let canvas_id = ctx.props().canvas_id.clone();
         
         Self {
             available_cells: AvailableCells::default(),
             available_controllers: AvailableControllers::default(),
-            graph_state: GraphStateRequest::default_with_name(canvas_id.to_string()),
+            graph_state: GraphStateRequest::default_with_name(ctx.props().canvas_id.to_string()),
             line_series: LineSeriesHolder::default(),
-            canvas_id: canvas_id,
             // _context_handle: _context_handle,
             canvas_node_ref: NodeRef::default(),
             draw_listener: None,
@@ -103,7 +96,6 @@ impl Component for Graph {
             previous_y_range: None,
             previous_sec_y_range: None,
             markpoints: Vec::new(),
-            periodic: None,
             parse_complete_listener: None,
             data_complete_listener: None,
         }
@@ -112,21 +104,22 @@ impl Component for Graph {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             GraphMessage::DrawGraph => {
-                let theme_data = if let Ok(theme_data) = get_theme_data() {
+                let theme_data = if let Ok(theme_data) = bindings::get_theme_data() {
                     theme_data
                 } else {
                     return true
                 };
-                let result = self.draw_graph(theme_data);
+                let result = self.draw_graph(ctx, theme_data);
                 if let Err(e) = result {
                     let error = wasm_bindgen::JsValue::from_str(e.to_string().as_str());
                     web_sys::console::error_1(&error);
                 }
+                return false;
             },
             GraphMessage::MouseClick(mouse_input) => {
                 // let message = wasm_bindgen::JsValue::from_str(format!("Recieved click event with x={} and y={}.", mouse_input.local_x, mouse_input.local_y).as_str());
                 // web_sys::console::info_1(&message);
-                let point = self.convert_local_x_y_to_graph_x_y(mouse_input.local_x, mouse_input.local_y);
+                let point = self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y);
                 // let message = wasm_bindgen::JsValue::from_str(format!("Converted x={:?} and y={:?}", point.0, point.1).as_str());
                 // web_sys::console::info_1(&message);
                 if let Some(previous_input) = &self.previous_mouse_input {
@@ -167,7 +160,7 @@ impl Component for Graph {
                 self.previous_mouse_input = Some(mouse_input);
             },
             GraphMessage::MouseWheel(mouse_input) => {
-                if let (Some(x), Some(y)) = self.convert_local_x_y_to_graph_x_y(mouse_input.local_x, mouse_input.local_y){
+                if let (Some(x), Some(y)) = self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y){
                     if let (Some(previous_x_range), Some(previous_y_range)) = (&mut self.previous_x_range, &mut self.previous_y_range) {
                         let scroll_amount = mouse_input.scroll_delta_y.clamp(-100f64, 100f64);
                         if (previous_x_range.contains(&x) || mouse_input.control_held || mouse_input.meta_held) && !mouse_input.shift_held {
@@ -189,12 +182,13 @@ impl Component for Graph {
                     }
                 }
                 self.previous_mouse_input = Some(mouse_input);
+                return false;
             },
             GraphMessage::MouseMovement(mouse_input) => {
                 if let Some(previous_input) = &self.previous_mouse_input {
                     if previous_input.left_click {
-                        if let (Some(previous_x), Some(previous_y)) = self.convert_local_x_y_to_graph_x_y(previous_input.local_x, previous_input.local_y) {
-                            if let (Some(current_x), Some(current_y)) = self.convert_local_x_y_to_graph_x_y(mouse_input.local_x, mouse_input.local_y) {
+                        if let (Some(previous_x), Some(previous_y)) = self.convert_local_x_y_to_graph_x_y(ctx, previous_input.local_x, previous_input.local_y) {
+                            if let (Some(current_x), Some(current_y)) = self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y) {
                                 if let (Some(previous_x_range), Some(previous_y_range)) = (&mut self.previous_x_range, &mut self.previous_y_range) {
                                     if (previous_x_range.contains(&current_x) || mouse_input.control_held || mouse_input.meta_held) && !mouse_input.shift_held {
                                         previous_x_range.start -= current_x - previous_x;
@@ -213,9 +207,11 @@ impl Component for Graph {
                     }
                 }
                 self.previous_mouse_input = Some(mouse_input);
+                return false;
             },
             GraphMessage::MouseExit => {
                 self.previous_mouse_input = None;
+                return false;
             },
             GraphMessage::ParseComplete(payload) => {
                 self.available_cells = payload.cell_ids;
@@ -228,7 +224,8 @@ impl Component for Graph {
                     web_sys::console::error_1(&wasm_bindgen::JsValue::from_str(format!("{:?}", e).as_str()));
                 }
                 // self.app_state.notification_callback.clone().expect("Notification callback must be set").emit(message);
-                bindings::retrieve_solar_data(serde_json::to_string(&self.graph_state).unwrap())
+                bindings::retrieve_solar_data(serde_json::to_string(&self.graph_state).unwrap());
+                return false;
             },
             GraphMessage::NewData(data) => {
                 // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("{:?}", &data).as_str()));
@@ -236,12 +233,12 @@ impl Component for Graph {
                 self.previous_x_range = None;
                 self.previous_y_range = None;
                 self.previous_sec_y_range = None;
+                return false;
             },
-            GraphMessage::NewDateRange(date_range) => {
+            GraphMessage::TimeControlsUpdate(new_time_frame) => {
                 // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str("NewDateRange callback called"));
-                let update = date_range.start < self.graph_state.start_time || date_range.end > self.graph_state.end_time;
-                self.graph_state.start_time = date_range.start;
-                self.graph_state.end_time = date_range.end;
+                let update = new_time_frame.start < self.graph_state.time_frame.start || new_time_frame.end > self.graph_state.time_frame.end;
+                self.graph_state.time_frame = new_time_frame;
                 // if update {
                     bindings::retrieve_solar_data(serde_json::to_string(&self.graph_state).unwrap())
                 // }
@@ -330,8 +327,8 @@ impl Component for Graph {
             )
         });
 
-        let onnewdaterange = ctx.link().callback(|date_range: DateRange| {
-            Self::Message::NewDateRange(date_range)
+        let onnewtimeframe = ctx.link().callback(|time_frame: AxisTimeRequest| {
+            Self::Message::TimeControlsUpdate(time_frame)
         });
 
         let onnewxaxisrequest = ctx.link().callback(|x_axis_controls_request: AxisControlsRequest| {
@@ -353,7 +350,7 @@ impl Component for Graph {
                     </canvas>
                 </div>
                 <div class="graph-controls">
-                    <TimeRangeSelector current_date_range={DateRange {start: self.graph_state.start_time, end: self.graph_state.end_time}} id={format!("{}_litepicker", self.canvas_id)} callback={onnewdaterange}/>
+                    <TimeRangeSelector current_date_range={AxisTimeRequest {start: self.graph_state.time_frame.start, end: self.graph_state.time_frame.end, manual_resolution: self.graph_state.time_frame.manual_resolution.clone()}} id={format!("{}_litepicker", ctx.props().canvas_id)} callback={onnewtimeframe}/>
                     <XAxisControls current_state={self.graph_state.x_axis.clone()} callback={onnewxaxisrequest} available_cells={self.available_cells.clone()} available_controllers={self.available_controllers.clone()} />
                     <YAxisControls current_state={self.graph_state.y_axis.0.clone()} callback={onnewyaxisrequest} available_cells={self.available_cells.clone()} available_controllers={self.available_controllers.clone()} />
                     <SecYAxisControls current_state={self.graph_state.y_axis.1.clone()} callback={onnewsecyaxisrequest} available_cells={self.available_cells.clone()} available_controllers={self.available_controllers.clone()} />
@@ -383,7 +380,7 @@ impl Component for Graph {
             self.draw_listener = Some(listener);
         }
 
-        resize_canvas(props.canvas_id.to_string(), props.canvas_container_id.to_string());
+        bindings::resize_canvas(props.canvas_id.to_string(), props.canvas_container_id.to_string());
 
         let root = bindings::get_root().expect("We should always be able to get the root element");
 
@@ -424,9 +421,13 @@ impl Component for Graph {
         );
 
         self.data_complete_listener = Some(data_listener);
+
+        ctx.link().callback(|_| {
+            Self::Message::UpdateGraphData
+        }).emit(());
     }
 
     fn destroy(&mut self, ctx: &Context<Self>) {
-        teardown_canvas_events(ctx.props().canvas_id.to_string());
+        bindings::teardown_canvas_events(ctx.props().canvas_id.to_string());
     }
 }

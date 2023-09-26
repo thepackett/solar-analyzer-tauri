@@ -1,6 +1,7 @@
 use plotters::prelude::*;
 use plotters_canvas::CanvasBackend;
 use shared::graph::{graph_type::GraphType, graph_axis::AxisDataType};
+use yew::Context;
 
 use crate::component::visual::theme_data::ThemeData;
 
@@ -10,7 +11,7 @@ pub const CHART_MARGIN_SIZE: u32 = 20;
 pub const CHART_LABEL_SIZE: u32 = 30;
 
 impl Graph {
-    pub fn draw_graph(&mut self, theme: ThemeData) -> Result<(), Box<dyn std::error::Error>>  {
+    pub fn draw_graph(&mut self, ctx: &Context<Graph>, theme: ThemeData) -> Result<(), Box<dyn std::error::Error>>  {
         //Thinking about the broader picture, I really need to divide behavior based on graph type.
         //Currently 2 graph types are planned.
         //1. X axis time line series
@@ -20,7 +21,7 @@ impl Graph {
 
 
 
-        let canvas_id = self.canvas_id.as_str();
+        let canvas_id = ctx.props().canvas_id.as_str();
         let line_series = &self.line_series;
         let backend = CanvasBackend::new(canvas_id).expect("cannot find canvas");
         let root = backend.into_drawing_area();

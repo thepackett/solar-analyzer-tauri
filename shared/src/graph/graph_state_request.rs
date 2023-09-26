@@ -1,16 +1,14 @@
 use serde::{Serialize, Deserialize};
 use time::{PrimitiveDateTime, macros::{date, time}};
 
-use super::graph_axis::{AxisDataType, AxisDataOption, AxisControlsRequest};
+use super::graph_axis::{AxisDataType, AxisDataOption, AxisControlsRequest, AxisTimeRequest};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphStateRequest {
     pub graph_id: String,
     pub x_axis: AxisControlsRequest,
     pub y_axis: (AxisControlsRequest, AxisControlsRequest),
-    pub start_time: i64,
-    pub end_time: i64,
-    pub resolution: Resolution,
+    pub time_frame: AxisTimeRequest,
 }
 
 //Note that Resolution must uphold the invariant that any of its members MUST be evenly divisible into 24 hours.
@@ -47,9 +45,11 @@ impl GraphStateRequest {
                     requests: vec![(AxisDataType::BatteryVoltage, AxisDataOption::Average)],
                 },
                 AxisControlsRequest::default()), 
-            start_time: PrimitiveDateTime::new(date!(2022-01-01), time!(0:00)).assume_utc().unix_timestamp(), 
-            end_time: PrimitiveDateTime::new(date!(2023-06-01), time!(0:00)).assume_utc().unix_timestamp(), 
-            resolution: Resolution::OneDay,
+            time_frame: AxisTimeRequest { 
+                start: PrimitiveDateTime::new(date!(2022-01-01), time!(0:00)).assume_utc().unix_timestamp(),
+                end: PrimitiveDateTime::new(date!(2023-06-01), time!(0:00)).assume_utc().unix_timestamp(), 
+                manual_resolution: Some(Resolution::OneDay),
+            }
         }
     }
 }

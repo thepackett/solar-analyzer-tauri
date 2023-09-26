@@ -3,6 +3,8 @@ mod bindings;
 mod app_state;
 mod component_channel;
 
+use std::rc::Rc;
+
 use component::message_handling::{message_box::MessageBoxProperties, simple_message::SimpleMessageProperties};
 use tracing::{event, Level};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
@@ -10,7 +12,7 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 
-use crate::{component::{file_handling::file_select::{FileSelect, FileSelectProperties}, message_handling::message_box::MessageBox, visual::{sidebar::Sidebar, sidemenu::Sidemenu, svg::{cog::Cog, file_upload::FileUpload}}, control::{switch::{Switch, SwitchProperties}, button::{Button, ButtonProperties}}, graph_handling::graph::Graph}, bindings::{Theme, remove_classes, add_classes, toggle_classes}, component_channel::ComponentChannel};
+use crate::{component::{file_handling::file_select::{FileSelect, FileSelectProperties}, message_handling::message_box::MessageBox, visual::{sidebar::Sidebar, sidemenu::Sidemenu, svg::{cog::Cog, file_upload::FileUpload}}, control::{switch::{Switch, SwitchProperties}, button::{Button, ButtonProperties}, shared_data_context::SharedDataContext}, graph_handling::graph::{Graph, graph_coordination::SharableGraphData}}, bindings::{Theme, remove_classes, add_classes, toggle_classes}, component_channel::ComponentChannel};
 
 fn main() {
     bindings::set_detected_theme();
@@ -80,23 +82,11 @@ fn app() -> Html {
         // <GraphStateHolder>
             <div class="main-layout">
                 <div class="main-content">
-                    <Graph canvas_id={AttrValue::from("test")} canvas_container_id={AttrValue::from("test-container")} notification_tx={notification_tx.clone()}/>
-                    // <div class={"information"}>
-                    //     <div class="graph-legend">
-                    //     <p>{"Graph Legend"}</p>
-                    //     </div>
-                    //     <div class="graph-markpoints">
-                    //         <p>{"Graph Markpoints"}</p>
-                    //     </div>
-                    //     <div class="graph-statistics">
-                    //         <p>{"Statistics"}</p>
-                    //     </div>
-                    //     <div class="control-hints">
-                    //         <p>{"Control Hints"}</p>
-                    //     </div>
-                    // </div>
-                    <Graph canvas_id={AttrValue::from("test2")} canvas_container_id={AttrValue::from("test-container2")} notification_tx={notification_tx.clone()}/>
-                    <MessageBox ..message_box_props/>
+                    <SharedDataContext<Option<SharableGraphData>> init={Rc::from(None)}>
+                        <Graph canvas_id={AttrValue::from("test")} canvas_container_id={AttrValue::from("test-container")} notification_tx={notification_tx.clone()}/>
+                        <Graph canvas_id={AttrValue::from("test2")} canvas_container_id={AttrValue::from("test-container2")} notification_tx={notification_tx.clone()}/>
+                        <MessageBox ..message_box_props/>
+                    </SharedDataContext<Option<SharableGraphData>>>
                 </div>
                 <Sidebar>
                     <Button ..settings_button_props>

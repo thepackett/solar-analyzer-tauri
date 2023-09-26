@@ -59,7 +59,7 @@ impl<S,C,I> Component for Channel<S,C,I>
         match msg {
             ChannelMessage::ActivateChannelComponent((system, channel, id)) => {
                 // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Channel state: {:?}", self.state.map).as_str()));
-                // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Activating system: {}, channel: {}, id:{}", system, channel, id).as_str()));
+                // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Activating system: {:?}, channel: {:?}, id:{:?}", system, channel, id).as_str()));
                 let mut new_map = self.state.map.clone();
                 let channel_map = new_map.entry(system).or_insert(HashMap::new());
                 
@@ -87,7 +87,7 @@ impl<S,C,I> Component for Channel<S,C,I>
                 }
             },
             ChannelMessage::DeactivateChannelComponent((system, channel, id)) => {
-                // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Deactivating system: {}, channel: {}, id:{}", system, channel, id).as_str()));
+                // web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Deactivating system: {:?}, channel: {:?}, id:{:?}", system, channel, id).as_str()));
                 let mut new_map = self.state.map.clone();
                 let channel_map = new_map.entry(system).or_insert(HashMap::new());
                 let id_vec = channel_map.entry(channel).or_insert(Vec::new());
@@ -104,7 +104,7 @@ impl<S,C,I> Component for Channel<S,C,I>
                 )
             },
         }
-        false
+        true
     }
 
     fn destroy(&mut self, ctx: &Context<Self>) {

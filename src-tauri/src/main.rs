@@ -90,11 +90,11 @@ fn retrieve_solar_data(graph_state_request: String, app: AppHandle) {
   let graph_state_request = serde_json::from_str::<GraphStateRequest>(&graph_state_request).unwrap();
   let data_guard = DATA.get().unwrap().lock().unwrap();
   let slice = &data_guard.data[
-    match data_guard.data.binary_search(&DataLine::from(graph_state_request.start_time)) {
+    match data_guard.data.binary_search(&DataLine::from(graph_state_request.time_frame.start)) {
       Ok(index) => index,
       Err(index) => index,
     }..
-    match data_guard.data.binary_search(&DataLine::from(graph_state_request.end_time)) {
+    match data_guard.data.binary_search(&DataLine::from(graph_state_request.time_frame.end)) {
       Ok(index) => index,
       Err(index) => index,
     }
@@ -102,7 +102,7 @@ fn retrieve_solar_data(graph_state_request: String, app: AppHandle) {
 
   let series_data = {
     let mut container = LineSeriesHolder::default();
-    let resolution = graph_state_request.resolution;
+    let resolution =  graph_state_request.time_frame.get_resolution();
 
     graph_state_request.x_axis.requests.iter().cloned().for_each(|(x_data_type, x_data_option)| {
       graph_state_request.y_axis.0.requests.iter().cloned().for_each(|(y_data_type, y_data_option)| {
