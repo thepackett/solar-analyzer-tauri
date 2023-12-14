@@ -1,9 +1,13 @@
 use yew::prelude::*;
 
+use crate::component::visual::general_props::Props;
+
+
+
 #[function_component]
-pub fn Cog() -> Html {
+pub fn Cog(props: &Props) -> Html {
     html!(
-    <svg version="1.1" id="Layer_1" viewBox="0 0 492.308 492.308" space="preserve">
+    <svg version="1.1" id="Layer_1" viewBox="0 0 492.308 492.308" space="preserve" class={props.class.to_string()}>
         <g>
             <g>
                 <path d="M492.308,283v-73.692l-53.462-9.115c-4.846-20.413-12.885-39.798-23.971-57.769l31.385-44.279l-52.106-52.106

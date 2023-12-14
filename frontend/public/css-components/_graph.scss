@@ -1,12 +1,13 @@
 @import "litepicker";
 @import "modal_window";
+@import "graph_copypaste";
 
 .graph {
     width: auto;
     height: auto;
     display: grid;
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 5em;
+    grid-template-rows: 1fr 10em;
 }
 
 .graph-canvas:active {

@@ -1,3 +1,5 @@
+@import "svg";
+
 .modal-window-background {
     position: fixed;
     left: 0;
@@ -5,7 +7,7 @@
     width: 100vw;
     height: 100vh;
     z-index: 998;
-    background-color: #0000003a;
+    background-color: color-mix(in srgb, var(--theme-background-secondary) 50%, transparent);
 }
 
 .modal-window-content {
@@ -16,7 +18,7 @@
     z-index: 999;
     max-height: 80vh;
     max-width: 80vw;
-    background-color: #ffffff;
+    background-color: var(--theme-background-primary);
     overflow: scroll;
 }
 

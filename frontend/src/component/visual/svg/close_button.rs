@@ -1,9 +1,7 @@
 use yew::prelude::*;
 
-#[derive(Properties, PartialEq)]
-pub struct Props {
-    pub class: AttrValue,
-}
+use crate::component::visual::general_props::Props;
+
 
 #[function_component]
 pub fn CloseButton(props: &Props) -> Html {

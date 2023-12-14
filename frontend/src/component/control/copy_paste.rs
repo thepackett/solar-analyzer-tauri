@@ -32,14 +32,14 @@ impl Component for CopyPaste {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let props = ctx.props();
         html!(
-            <>
+            <div class="graph-copypaste">
                 if props.copy_visible {
                     <p onclick={ctx.link().callback(|_| {Self::Message::Copy})}>{"Copy visible"}</p>
                 }
                 if props.paste_visible {
                     <p onclick={ctx.link().callback(|_| {Self::Message::Paste})}>{"Paste visible"}</p>
                 }
-            </>
+            </div>
         )
     }
 

@@ -90,13 +90,13 @@ fn app() -> Html {
                 </div>
                 <Sidebar>
                     <Button ..settings_button_props>
-                        <Cog/>
+                        <Cog class="sidebar-icon svg" />
                     </Button>
                     <Sidemenu class="settings-menu">
                         <Switch ..theme_switch_props/>
                     </Sidemenu>
                     <Button ..file_upload_button_props>
-                        <FileUpload/>
+                        <FileUpload class="sidebar-icon svg" />
                     </Button>
                     <Sidemenu class="file-upload-menu">
                         <p>{"Side menu 2!"}</p>

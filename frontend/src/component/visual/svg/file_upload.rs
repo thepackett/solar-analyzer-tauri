@@ -1,9 +1,11 @@
 use yew::prelude::*;
 
+use crate::component::visual::general_props::Props;
+
 #[function_component]
-pub fn FileUpload() -> Html {
+pub fn FileUpload(props: &Props) -> Html {
     html!(
-    <svg version="1.1" id="Capa_1"  viewBox="0 0 266 266" space="preserve">
+    <svg version="1.1" id="Capa_1"  viewBox="0 0 266 266" space="preserve" class={props.class.to_string()}>
         <path d="M235.829,213.645c-0.038-0.676-0.088-1.35-0.153-2.018c-0.008-0.078-0.012-0.157-0.021-0.236
         c-0.075-0.731-0.17-1.455-0.277-2.176c-0.029-0.195-0.06-0.389-0.091-0.583c-0.097-0.607-0.204-1.211-0.323-1.811
         c-0.026-0.131-0.048-0.263-0.075-0.394c-0.144-0.695-0.305-1.384-0.477-2.068c-0.05-0.197-0.103-0.393-0.155-0.589

@@ -1,8 +1,8 @@
 use std::ops::Range;
-use plotters::{prelude::*, coord::{ranged1d::{ValueFormatter, NoDefaultFormatting, KeyPointHint}, types::RangedCoordf64}};
+use plotters::{prelude::*, coord::{ranged1d::{ValueFormatter, NoDefaultFormatting, KeyPointHint, KeyPointWeight}, types::RangedCoordf64}};
 use plotters_canvas::CanvasBackend;
 use shared::graph::{graph_type::GraphType, graph_axis::{AxisDataType, AxisDataOption}};
-use time::OffsetDateTime;
+use time::{OffsetDateTime, PrimitiveDateTime, Time, Date};
 use yew::Context;
 
 use crate::component::visual::theme_data::ThemeData;
@@ -10,7 +10,8 @@ use crate::component::visual::theme_data::ThemeData;
 use super::{Graph, graph_draw_utils::{other_axis_label_formatter, time_axis_label_formatter}};
 
 pub const CHART_MARGIN_SIZE: u32 = 20;
-pub const CHART_LABEL_SIZE: u32 = 30;
+pub const CHART_LABEL_SIZE: u32 = 40;
+
 
 struct GraphDataRange {
     pub range: RangedCoordf64,
@@ -25,7 +26,16 @@ impl Ranged for GraphDataRange {
         self.range.map(value, limit)
     }
 
+    // Function implementation invariants:
+    // 1. Stored unix timestamps must be valid.
+    // 2. The range must be within Time's limit of +- 9999 years (inclusive).
     fn key_points<Hint: KeyPointHint>(&self, hint: Hint) -> Vec<Self::ValueType> {
+        //This function gets called twice, once for bold lines, once for light lines. Check which type with the KeyPointH
+        match hint.weight() {
+            KeyPointWeight::Bold => web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Bold lines with range: {:?}", self.range.range()).as_str())),
+            KeyPointWeight::Any => web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Light lines with range: {:?}", self.range.range()).as_str())),
+        }
+        
         match self.data_type {
             AxisDataType::Time | AxisDataType::PeriodicTime => {
                 let start = self.range.range().start;
@@ -46,32 +56,375 @@ impl Ranged for GraphDataRange {
                 //If 15 minutes are bold, then 5 minutes are normal. Etc.
                 //Transition from one unit to a smaller unit if less than 1 whole unit is visible.
                 //Transition from one unit to a larger unit if at least 1 whole larger unit is visible.
-                let key_points: Vec<f64> = Vec::new();
-                
+                let mut key_points: Vec<f64> = Vec::new();
+                // The start time stored as a OffsetDateTime for convenience.
+                let start_time = OffsetDateTime::from_unix_timestamp(start as i64).expect("All stored timestamps are valid");
                 match end - start {
-                    x if x >= (60*60*24*365) as f64 => { //If we contain at least a whole year* (365 days)
-                        let start_date_time = OffsetDateTime::from_unix_timestamp(end as i64).unwrap_or(OffsetDateTime::UNIX_EPOCH);
+                    //If we contain more than 10 years. This is necessary so we don't overflow the max amount of dividing lines as a user zooms out excessively.
+                    range if range >= (60*60*24*365*10) as f64 => {
+                        // Largest power of 10 (years) that fits inside the range (in years)
+                        let bold_interval = 10i32.pow((range / (60*60*24*365*10) as f64).log10().floor() as u32);
+                        web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("{}", bold_interval).as_str()));
+                        match hint.weight() {
+                            // Bold lines will be the highest possible division that is less than 10. ie a 50 year span will have 10 year divisions.
+                            KeyPointWeight::Bold => {
+                                let bold_line_year = start_time.year() - (start_time.year() % bold_interval) + bold_interval;
+                                let mut bold_line_time = OffsetDateTime::UNIX_EPOCH.replace_year(bold_line_year)
+                                    .expect("Year should be within Time's +-9999 year limit");
+                                key_points.push(bold_line_time.unix_timestamp() as f64);
+                                loop {
+                                    bold_line_time = bold_line_time.replace_year(bold_line_time.year() + bold_interval)
+                                        .expect("Year should be within Time's +-9999 year limit");
+                                    if bold_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(bold_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                            // Light lines will subdivide the bold sections 10 times
+                            KeyPointWeight::Any => {
+                                // Subdivide the bold lines into 10 sections
+                                let light_interval = (bold_interval / 10).max(1);
+                                let light_line_year = start_time.year() - (start_time.year() % light_interval) + light_interval;
+                                let mut light_line_time = OffsetDateTime::UNIX_EPOCH.replace_year(light_line_year)
+                                    .expect("Year should be within Time's +-9999 year limit");
+                                key_points.push(light_line_time.unix_timestamp() as f64);
+                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Power 10 start").as_str()));
+                                loop {
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
+                                    light_line_time = light_line_time.replace_year(light_line_time.year() + light_interval)
+                                        .expect("Year should be within Time's +-9999 year limit");
+                                    if light_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(light_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                        }
                     },
-                    x if x >= (60*60*24*30) as f64 => { //If we contain at least a whole month* (30 days)
-
+                    //If we contain at least a whole year* (365 days)
+                    range if range >= (60*60*24*365) as f64 => {      
+                        match hint.weight() {
+                            // Bold lines will be every year
+                            KeyPointWeight::Bold => {
+                                let bold_line = start_time.year() + 1;
+                                let mut bold_line_time = OffsetDateTime::UNIX_EPOCH.replace_year(bold_line)
+                                    .expect("Year should be within Time's +-9999 year limit");
+                                key_points.push(bold_line_time.unix_timestamp() as f64);
+                                loop {
+                                    bold_line_time = bold_line_time.replace_year(bold_line_time.year() + 1)
+                                        .expect("Year should be within Time's +-9999 year limit");
+                                    if bold_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(bold_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                            // Light lines will be every month
+                            KeyPointWeight::Any => {
+                                let mut light_line_time = if start_time.month() == time::Month::December {
+                                    start_time.replace_date_time(
+                                        PrimitiveDateTime::new(
+                                            Date::from_calendar_date(start_time.year() + 1, start_time.month().next(), 1).expect("Valid date format"), 
+                                            Time::MIDNIGHT
+                                        )
+                                    )
+                                } else {
+                                    start_time.replace_date_time(
+                                        PrimitiveDateTime::new(
+                                            Date::from_calendar_date(start_time.year(), start_time.month().next(), 1).expect("Valid date format"), 
+                                            Time::MIDNIGHT
+                                        )
+                                    )
+                                };
+                                key_points.push(light_line_time.unix_timestamp() as f64);
+                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Monthly").as_str()));
+                                loop {
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
+                                    light_line_time = if light_line_time.month() == time::Month::December {
+                                        light_line_time.replace_month(light_line_time.month().next())
+                                        .expect("Month should be valid")
+                                        .replace_year(light_line_time.year() + 1)
+                                        .expect("Year should be within Time's +-9999 year limit")
+                                    } else {
+                                        light_line_time.replace_month(light_line_time.month().next())
+                                        .expect("Month should be valid")
+                                    };
+                                    if light_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(light_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                        }
                     },
-                    x if x >= (60*60*24*7) as f64 => { //If we contain at least a whole week
-
+                    //If we contain at least a whole month* (30 days)
+                    range if range >= (60*60*24*30) as f64 => { 
+                        match hint.weight() {
+                            // Bold lines will be every month
+                            KeyPointWeight::Bold => {
+                                let mut bold_line_time = if start_time.month() == time::Month::December {
+                                    start_time.replace_date_time(
+                                        PrimitiveDateTime::new(
+                                            Date::from_calendar_date(start_time.year() + 1, start_time.month().next(), 1).expect("Valid date format"), 
+                                            Time::MIDNIGHT
+                                        )
+                                    )
+                                } else {
+                                    start_time.replace_date_time(
+                                        PrimitiveDateTime::new(
+                                            Date::from_calendar_date(start_time.year(), start_time.month().next(), 1).expect("Valid date format"), 
+                                            Time::MIDNIGHT
+                                        )
+                                    )
+                                };
+                                key_points.push(bold_line_time.unix_timestamp() as f64);
+                                loop {
+                                    bold_line_time = if bold_line_time.month() == time::Month::December {
+                                        bold_line_time.replace_month(bold_line_time.month().next())
+                                        .expect("Month should be valid")
+                                        .replace_year(bold_line_time.year() + 1)
+                                        .expect("Year should be within Time's +-9999 year limit")
+                                    } else {
+                                        bold_line_time.replace_month(bold_line_time.month().next())
+                                        .expect("Month should be valid")
+                                    };
+                                    if bold_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(bold_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                            // Light lines will be every week
+                            KeyPointWeight::Any => {
+                                let mut light_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*24*7) + (60*60*24*7)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(light_line_time.unix_timestamp() as f64);
+                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Weekly").as_str()));
+                                loop {
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
+                                    light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*60*24*7)
+                                        .expect("Checked add should be valid");
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("{:?}", light_line_time).as_str()));
+                                    if light_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(light_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                        }
                     },
-                    x if x >= (60*60*24) as f64 => { //If we contain at least a whole day
-
+                    //If we contain at least a whole week
+                    range if range >= (60*60*24*7) as f64 => { 
+                        match hint.weight() {
+                            // Bold lines will be every week
+                            KeyPointWeight::Bold => {
+                                let mut bold_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*24*7) + (60*60*24*7)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(bold_line_time.unix_timestamp() as f64);
+                                loop {
+                                    bold_line_time = bold_line_time.checked_add(time::Duration::SECOND * 60*60*24*7)
+                                        .expect("Checked add should be valid");
+                                    if bold_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(bold_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                            // Light lines will be every day
+                            KeyPointWeight::Any => {
+                                let mut light_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*24) + (60*60*24)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(light_line_time.unix_timestamp() as f64);
+                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Daily").as_str()));
+                                loop {
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
+                                    light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*60*24)
+                                        .expect("Checked add should be valid");
+                                    if light_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(light_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                        }
                     },
-                    x if x >= (60*60*6) as f64 => { //If we contain at least 6 hours
-
+                    //If we contain at least a whole day
+                    range if range >= (60*60*24) as f64 => { 
+                        match hint.weight() {
+                            // Bold lines will be every day
+                            KeyPointWeight::Bold => {
+                                let mut bold_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*24) + (60*60*24)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(bold_line_time.unix_timestamp() as f64);
+                                loop {
+                                    bold_line_time = bold_line_time.checked_add(time::Duration::SECOND * 60*60*24)
+                                        .expect("Checked add should be valid");
+                                    if bold_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(bold_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                            // Light lines will be every 6 hours
+                            KeyPointWeight::Any => {
+                                let mut light_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*6) + (60*60*6)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(light_line_time.unix_timestamp() as f64);
+                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("6 hourly").as_str()));
+                                loop {
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
+                                    light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*60*6)
+                                        .expect("Checked add should be valid");
+                                    if light_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(light_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                        }
                     },
-                    x if x >= (60*60) as f64 => { //If we contain at least 1 hour
-
+                    //If we contain at least 6 hours
+                    range if range >= (60*60*6) as f64 => { 
+                        match hint.weight() {
+                            // Bold lines will be every 6 hours
+                            KeyPointWeight::Bold => {
+                                let mut bold_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*6) + (60*60*6)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(bold_line_time.unix_timestamp() as f64);
+                                loop {
+                                    bold_line_time = bold_line_time.checked_add(time::Duration::SECOND * 60*60*6)
+                                        .expect("Checked add should be valid");
+                                    if bold_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(bold_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                            // Light lines will be every hour
+                            KeyPointWeight::Any => {
+                                let mut light_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60) + (60*60)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(light_line_time.unix_timestamp() as f64);
+                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Hourly").as_str()));
+                                loop {
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
+                                    light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*60)
+                                        .expect("Checked add should be valid");
+                                    if light_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(light_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                        }
                     },
-                    _ => { //Assume we contain at least 15 minutes, since there are no smaller subdivision pairs left
-
-                    }
+                    //If we contain at least 1 hour
+                    range if range >= (60*60) as f64 => { 
+                        match hint.weight() {
+                            // Bold lines will be every hour
+                            KeyPointWeight::Bold => {
+                                let mut bold_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60) + (60*60)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(bold_line_time.unix_timestamp() as f64);
+                                loop {
+                                    bold_line_time = bold_line_time.checked_add(time::Duration::SECOND * 60*60)
+                                        .expect("Checked add should be valid");
+                                    if bold_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(bold_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                            // Light lines will be every 15 minutes
+                            KeyPointWeight::Any => {
+                                let mut light_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*15) + (60*15)
+                                ).expect("Unix timestamp should be valid");
+                                key_points.push(light_line_time.unix_timestamp() as f64);
+                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("15 minutes").as_str()));
+                                loop {
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
+                                    light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*15)
+                                        .expect("Checked add should be valid");
+                                    if light_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(light_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                        }
+                    },
+                    //Assume we contain at least 15 minutes, since there are no smaller subdivision pairs left
+                    range if range < (60*15) as f64 => { 
+                        match hint.weight() {
+                            // Bold lines will be every 15 minutes
+                            KeyPointWeight::Bold => {
+                                let mut bold_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*15) + (60*15)
+                                ).expect("Unix timestamp should be valid");
+                                if bold_line_time.unix_timestamp() <= end as i64 {
+                                    key_points.push(bold_line_time.unix_timestamp() as f64);
+                                }
+                                loop {
+                                    bold_line_time = bold_line_time.checked_add(time::Duration::SECOND * 60*15)
+                                        .expect("Checked add should be valid");
+                                    if bold_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(bold_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                            // Light lines will be every 5 minutes
+                            KeyPointWeight::Any => {
+                                let mut light_line_time = OffsetDateTime::from_unix_timestamp(
+                                    start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*5) + (60*5)
+                                ).expect("Unix timestamp should be valid");
+                                if light_line_time.unix_timestamp() <= end as i64 {
+                                    key_points.push(light_line_time.unix_timestamp() as f64);
+                                }
+                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("5 minutes").as_str()));
+                                loop {
+                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
+                                    light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*5)
+                                        .expect("Checked add should be valid");
+                                    if light_line_time.unix_timestamp() >= end as i64 {
+                                        break;
+                                    } else {
+                                        key_points.push(light_line_time.unix_timestamp() as f64)
+                                    }
+                                }
+                            },
+                        }
+                    },
+                    _ => {// All points are covered, but rust doesn't know that, so this is here to satisfy rust's matching rules.
+                    },
                 }
-                vec![0f64, 1f64*10000f64, 2f64*10000f64, 3f64*10000f64, 4f64*10000f64, 5f64*10000f64, 6f64*10000f64, 7f64*10000f64, 8f64*10000f64, 9f64*10000f64]
+                //returned vector needs to contain elements within (or close to?) the range given.
+                key_points
             },
             _ => self.range.key_points(hint),
         }
@@ -352,7 +705,7 @@ impl Graph {
         
 
         let x_axis_formatter = match self.graph_state.x_axis.requests.first() {
-            Some((data_type, data_option)) => {
+            Some((data_type, _data_option)) => {
                 match data_type {
                     AxisDataType::Time => {
                         time_axis_label_formatter
@@ -365,7 +718,7 @@ impl Graph {
             None => other_axis_label_formatter,
         };
         let y_axis_formatter = match self.graph_state.y_axis.0.requests.first() {
-            Some((data_type, data_option)) => {
+            Some((data_type, _data_option)) => {
                 match data_type {
                     AxisDataType::Time => {
                         time_axis_label_formatter
@@ -445,7 +798,6 @@ impl Graph {
             },
             None => {},
         };
-    
     
         root.present()?;
         Ok(())
