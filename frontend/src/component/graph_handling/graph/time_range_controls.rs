@@ -100,8 +100,8 @@ impl Component for TimeRangeSelector {
             let resolution = match element.value().as_ref() {
                 "auto" => None,
                 "1_minute" => Some(Resolution::OneMinute),
-                "5_minute" => Some(Resolution::FiveMinute),
-                "15_minute" => Some(Resolution::FifteenMinute),
+                "5_minutes" => Some(Resolution::FiveMinute),
+                "15_minutes" => Some(Resolution::FifteenMinute),
                 "1_hour" => Some(Resolution::OneHour),
                 "1_day" => Some(Resolution::OneDay),
                 _ => None,

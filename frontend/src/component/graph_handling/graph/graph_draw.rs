@@ -10,7 +10,7 @@ use crate::component::visual::theme_data::ThemeData;
 use super::{Graph, graph_draw_utils::{other_axis_label_formatter, time_axis_label_formatter}};
 
 pub const CHART_MARGIN_SIZE: u32 = 10;
-pub const CHART_LABEL_SIZE: u32 = 40;
+pub const CHART_LABEL_SIZE: u32 = 50;
 
 
 struct GraphDataRange {
@@ -31,10 +31,6 @@ impl Ranged for GraphDataRange {
     // 2. The range must be within Time's limit of +- 9999 years (inclusive).
     fn key_points<Hint: KeyPointHint>(&self, hint: Hint) -> Vec<Self::ValueType> {
         //This function gets called twice, once for bold lines, once for light lines. Check which type with the KeyPointH
-        match hint.weight() {
-            KeyPointWeight::Bold => web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Bold lines with range: {:?}", self.range.range()).as_str())),
-            KeyPointWeight::Any => web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Light lines with range: {:?}", self.range.range()).as_str())),
-        }
         
         match self.data_type {
             AxisDataType::Time | AxisDataType::PeriodicTime => {
@@ -64,7 +60,6 @@ impl Ranged for GraphDataRange {
                     range if range >= (60*60*24*365*10) as f64 => {
                         // Largest power of 10 (years) that fits inside the range (in years)
                         let bold_interval = 10i32.pow((range / (60*60*24*365*10) as f64).log10().floor() as u32);
-                        web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("{}", bold_interval).as_str()));
                         match hint.weight() {
                             // Bold lines will be the highest possible division that is less than 10. ie a 50 year span will have 10 year divisions.
                             KeyPointWeight::Bold => {
@@ -90,9 +85,7 @@ impl Ranged for GraphDataRange {
                                 let mut light_line_time = OffsetDateTime::UNIX_EPOCH.replace_year(light_line_year)
                                     .expect("Year should be within Time's +-9999 year limit");
                                 key_points.push(light_line_time.unix_timestamp() as f64);
-                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Power 10 start").as_str()));
                                 loop {
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
                                     light_line_time = light_line_time.replace_year(light_line_time.year() + light_interval)
                                         .expect("Year should be within Time's +-9999 year limit");
                                     if light_line_time.unix_timestamp() >= end as i64 {
@@ -141,9 +134,7 @@ impl Ranged for GraphDataRange {
                                     )
                                 };
                                 key_points.push(light_line_time.unix_timestamp() as f64);
-                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Monthly").as_str()));
                                 loop {
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
                                     light_line_time = if light_line_time.month() == time::Month::December {
                                         light_line_time.replace_month(light_line_time.month().next())
                                         .expect("Month should be valid")
@@ -206,12 +197,9 @@ impl Ranged for GraphDataRange {
                                     start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*24*7) + (60*60*24*7)
                                 ).expect("Unix timestamp should be valid");
                                 key_points.push(light_line_time.unix_timestamp() as f64);
-                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Weekly").as_str()));
                                 loop {
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
                                     light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*60*24*7)
                                         .expect("Checked add should be valid");
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("{:?}", light_line_time).as_str()));
                                     if light_line_time.unix_timestamp() >= end as i64 {
                                         break;
                                     } else {
@@ -246,9 +234,7 @@ impl Ranged for GraphDataRange {
                                     start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*24) + (60*60*24)
                                 ).expect("Unix timestamp should be valid");
                                 key_points.push(light_line_time.unix_timestamp() as f64);
-                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Daily").as_str()));
                                 loop {
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
                                     light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*60*24)
                                         .expect("Checked add should be valid");
                                     if light_line_time.unix_timestamp() >= end as i64 {
@@ -285,9 +271,7 @@ impl Ranged for GraphDataRange {
                                     start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60*6) + (60*60*6)
                                 ).expect("Unix timestamp should be valid");
                                 key_points.push(light_line_time.unix_timestamp() as f64);
-                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("6 hourly").as_str()));
                                 loop {
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
                                     light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*60*6)
                                         .expect("Checked add should be valid");
                                     if light_line_time.unix_timestamp() >= end as i64 {
@@ -324,9 +308,7 @@ impl Ranged for GraphDataRange {
                                     start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*60) + (60*60)
                                 ).expect("Unix timestamp should be valid");
                                 key_points.push(light_line_time.unix_timestamp() as f64);
-                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Hourly").as_str()));
                                 loop {
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
                                     light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*60)
                                         .expect("Checked add should be valid");
                                     if light_line_time.unix_timestamp() >= end as i64 {
@@ -363,9 +345,7 @@ impl Ranged for GraphDataRange {
                                     start_time.unix_timestamp() - start_time.unix_timestamp().rem_euclid(60*15) + (60*15)
                                 ).expect("Unix timestamp should be valid");
                                 key_points.push(light_line_time.unix_timestamp() as f64);
-                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("15 minutes").as_str()));
                                 loop {
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
                                     light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*15)
                                         .expect("Checked add should be valid");
                                     if light_line_time.unix_timestamp() >= end as i64 {
@@ -406,9 +386,7 @@ impl Ranged for GraphDataRange {
                                 if light_line_time.unix_timestamp() <= end as i64 {
                                     key_points.push(light_line_time.unix_timestamp() as f64);
                                 }
-                                web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("5 minutes").as_str()));
                                 loop {
-                                    web_sys::console::info_1(&wasm_bindgen::JsValue::from_str(format!("Looping").as_str()));
                                     light_line_time = light_line_time.checked_add(time::Duration::SECOND * 60*5)
                                         .expect("Checked add should be valid");
                                     if light_line_time.unix_timestamp() >= end as i64 {
@@ -576,20 +554,17 @@ impl Graph {
             .caption(format!("temp caption"), caption_font.clone().with_color(RGBColor::from(&theme.theme_text)))
             .x_label_area_size(CHART_LABEL_SIZE)
             .y_label_area_size(CHART_LABEL_SIZE)
+            .right_y_label_area_size(CHART_LABEL_SIZE)
             .build_cartesian_2d(GraphDataRange {
                 range: RangedCoordf64::from(x_axis_range.clone()),
                 data_type: self.graph_state.x_axis.requests.first().unwrap_or(&(AxisDataType::Time, AxisDataOption::Average)).0.clone(),
             }, GraphDataRange{
                 range: RangedCoordf64::from(y_axis_range.clone()),
                 data_type: self.graph_state.y_axis.0.requests.first().unwrap_or(&(AxisDataType::BatteryVoltage, AxisDataOption::Average)).0.clone(),
-            })?;
+            })?
+            .set_secondary_coord(x_axis_range.clone(), secondary_y_axis_range.clone());
 
-        
-        //chart.set_secondary_coord(x_axis_range, secondary_y_axis_range).configure_secondary_axes();
-        
-
-
-        //Do all plotting based on graph type.
+        //Do all plotting based on graph type for primary and secondary axis.
         match self.get_graph_type() {
             GraphType::XAxisLine => {
                 //Draw the data series
@@ -653,6 +628,69 @@ impl Graph {
                     }
                 }); 
 
+                //Drawing secondary series
+                line_series.secondary_series.iter().enumerate().for_each(|series| {
+                    let name = series.1.name.clone();
+                    //If drawn as is, the line series "line" for data outside the range of the graph is drawn such that the data is clamped to the graph bounds.
+                    //This causes it to display an incorrect slope, and thus incorrect values.
+                    //Here we will modify the data for display such that any data going from in bounds to out of bounds, or from out of bounds to in bounds
+                    // hits the y (or x) axis at the right location by adding points on the line from one point to the next.
+                    let data = series.1.data_points.clone().windows(2).map(|point| {
+                        let current_point = point[0];
+                        let next_point = point[1];
+                        let slope = (next_point.1 - current_point.1) / (next_point.0 - current_point.0);
+                        let mut valid_points = vec![current_point];
+
+                        //Since all x values are sorted in ascending x, we only care about points that are of higher x value than the current point
+                        //Furthermore, since we are only interested in lines of shorter length, and all lines share the same slope, any line with
+                        // an x value greater than the x value of the next point is longer, and thus invalid
+
+                        //Solve for the y_max intercept line
+                        let y_max_intercept_x = (y_axis_range.end - current_point.1) / slope + current_point.0;
+                        if y_max_intercept_x > current_point.0 && y_max_intercept_x < next_point.0 {
+                            //We don't care about the Ok case since there's no point in inserting identical points.
+                            if let Err(index) = valid_points.binary_search_by(|element| element.0.total_cmp(&y_max_intercept_x)) {
+                                valid_points.insert(index, (y_max_intercept_x, y_axis_range.end));
+                            }
+                        } 
+
+                        //Solve for the y_min intercept line
+                        let y_min_intercept_x = (y_axis_range.start - current_point.1) / slope + current_point.0;
+                        if y_min_intercept_x > current_point.0 && y_min_intercept_x < next_point.0 {
+                            if let Err(index) = valid_points.binary_search_by(|element| element.0.total_cmp(&y_min_intercept_x)) {
+                                valid_points.insert(index, (y_min_intercept_x, y_axis_range.start));
+                            }
+                        } 
+
+                        //Solve for the x_max intercept line
+                        if x_axis_range.end > current_point.0 && x_axis_range.end < next_point.0 {
+                            if let Err(index) = valid_points.binary_search_by(|element| element.0.total_cmp(&x_axis_range.end)) {
+                                valid_points.insert(index, (x_axis_range.end, slope * (x_axis_range.end - current_point.0) + current_point.1));
+                            }
+                        }
+
+                        //Solve for the x_min intercept line
+                        if x_axis_range.start > current_point.0 && x_axis_range.start < next_point.0 {
+                            if let Err(index) = valid_points.binary_search_by(|element| element.0.total_cmp(&x_axis_range.start)) {
+                                valid_points.insert(index, (x_axis_range.start, slope * (x_axis_range.start - current_point.0) + current_point.1));
+                            }
+                        }
+
+                        valid_points
+                    }).flatten().collect::<Vec<_>>();
+                    let primary_series = self.line_series.series.len();
+                    match chart.draw_secondary_series(LineSeries::new(data, Palette99::pick(series.0 + primary_series))) {
+                        Ok(line_series) => {
+                            //Configure labels and legend here
+                            line_series
+                                .label(name)
+                                .legend(move |(x,y)| {PathElement::new(vec![(x, y), (x + 20, y)], Palette99::pick(series.0 + primary_series))});
+                        },
+                        Err(_) => {},
+                    }
+                });
+
+                //Drawing markpoints for primary and secondary series
                 line_series.series.iter().chain(line_series.secondary_series.iter()).enumerate().for_each(|series| {
                     let mut points = Vec::new();
                     self.markpoints.iter().for_each(|markpoint| {
@@ -697,7 +735,39 @@ impl Graph {
                     }
                 });
             },
-            GraphType::XYScatter => todo!(),
+            GraphType::XYScatter => {
+                // A bit of a misnomer, line_series is just a list of (x,y) pairs, and so is suitable for XY scatter plots too.
+                let size = 3;
+                line_series.series.iter().enumerate().for_each(|series| {
+                    let name = series.1.name.clone();
+                    match chart.draw_series(PointSeries::of_element(series.1.data_points.clone(), size, ShapeStyle::from(Palette99::pick(series.0)).filled(), &|coord, size, style| {
+                        EmptyElement::at(coord) + Rectangle::new([(-size,-size), (size,size)], style)
+                    })){
+                        Ok(point_series) => {
+                            point_series
+                                .label(name)
+                                .legend(move |(x,y)| {Rectangle::new([(x-size+10,y-size), (x+size+10,y+size)], ShapeStyle::from(Palette99::pick(series.0)).filled())});
+                        },
+                        Err(_) => {},
+                    };
+                });
+
+                //Draw secondary series
+                let primary_series = line_series.series.len();
+                line_series.secondary_series.iter().enumerate().for_each(|series| {
+                    let name = series.1.name.clone();
+                    match chart.draw_secondary_series(PointSeries::of_element(series.1.data_points.clone(), size, ShapeStyle::from(Palette99::pick(series.0 + primary_series)), &|coord, size, style| {
+                        EmptyElement::at(coord) + Rectangle::new([(-size,-size), (size,size)], style)
+                    })){
+                        Ok(point_series) => {
+                            point_series
+                                .label(name)
+                                .legend(move |(x,y)| {Rectangle::new([(x-size+10,y-size), (x+size+10,y+size)], ShapeStyle::from(Palette99::pick(series.0 + primary_series)))});
+                        },
+                        Err(_) => {},
+                    };
+                });
+            },
         }
 
 
@@ -770,11 +840,11 @@ impl Graph {
             .axis_style(&RGBColor::from(&theme.theme_graph_border))
             .x_desc(x_axis_description)
             .x_label_style(label_font.clone())
-            .x_labels(3)
+            .x_labels(4)
             .x_label_formatter(&x_axis_formatter)
             .y_desc(y_axis_description)
             .y_label_style(label_font.clone())
-            .y_labels(3)
+            .y_labels(4)
             .y_label_formatter(&y_axis_formatter)
             .label_style(&RGBColor::from(&theme.theme_text))
             .draw()?;
@@ -788,13 +858,16 @@ impl Graph {
 
         //Draw and configure secondary axis, if it is present
         match self.graph_state.y_axis.1.requests.first() {
-            Some((data_type, data_option)) => {
-                chart.set_secondary_coord(x_axis_range, secondary_y_axis_range)
+            Some(_) => {
+                chart
                     .configure_secondary_axes()
+                    .axis_desc_style(&RGBColor::from(&theme.theme_text))
+                    .label_style(&RGBColor::from(&theme.theme_text))
+                    .axis_style(&RGBColor::from(&theme.theme_graph_border))
                     .y_desc(secondary_y_axis_description)
                     .y_label_formatter(&secondary_y_axis_formatter)
-                    .x_labels(3);
-                    
+                    .y_labels(4)
+                    .draw()?;
             },
             None => {},
         };

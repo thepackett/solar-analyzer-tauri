@@ -117,51 +117,50 @@ impl Component for Graph {
                 return false;
             },
             GraphMessage::MouseClick(mouse_input) => {
-                // let message = wasm_bindgen::JsValue::from_str(format!("Recieved click event with x={} and y={}.", mouse_input.local_x, mouse_input.local_y).as_str());
-                // web_sys::console::info_1(&message);
-                let point = self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y);
-                // let message = wasm_bindgen::JsValue::from_str(format!("Converted x={:?} and y={:?}", point.0, point.1).as_str());
-                // web_sys::console::info_1(&message);
-                if let Some(previous_input) = &self.previous_mouse_input {
-                    if !previous_input.left_click {
-                        if let (Some(graph_x), Some(graph_y)) = point {
-                            if let Some(range_x) = self.previous_x_range.clone() {
-                                if let Some(range_y) = self.previous_y_range.clone() {
-                                    if range_x.contains(&graph_x) && range_y.contains(&graph_y) {
-                                        let minimum_difference = (range_x.end - range_x.start) * 0.0025f64; //Markpoints must be more than 0.25% the "viewport" apart
-                                        let new_markpoints = match self.get_graph_type() {
-                                            GraphType::XAxisLine => {
-                                                //If we're in XAxis Line mode, then markpoints are vertical lines.
-                                                self.markpoints.iter().cloned().filter(|markpoint| {
-                                                    (graph_x - markpoint.0).abs() > minimum_difference
-                                                }).collect::<Vec<_>>()
-                                            },
-                                            GraphType::XYScatter => {
-                                                //If we're in XYScatter mode, then markpoints are points.
-                                                self.markpoints.iter().cloned().filter(|markpoint| {
-                                                    (graph_x - markpoint.0).powi(2) + (graph_y - markpoint.1).powi(2) > minimum_difference.powi(2)
-                                                }).collect::<Vec<_>>()
-                                            },
-                                        };
+                // Disabling this for now. There's no good way to label the markpoints using plotters without manually doing the dynamic styling and placement,
+                // which is difficult to justify doing at the moment. I may get back to this later.
 
-                                        if new_markpoints.len() < self.markpoints.len() {
-                                            self.markpoints = new_markpoints
-                                        } else {
-                                            self.markpoints.push((graph_x, graph_y))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } 
-                }
-                // let message = wasm_bindgen::JsValue::from_str(format!("Final Markpoints: {:?}", self.markpoints).as_str());
-                // web_sys::console::info_1(&message);
+                // let point = self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y);
+                // if let Some(previous_input) = &self.previous_mouse_input {
+                //     if !previous_input.left_click {
+                //         if let (Some(graph_x), Some(graph_y)) = point {
+                //             if let Some(range_x) = self.previous_x_range.clone() {
+                //                 if let Some(range_y) = self.previous_y_range.clone() {
+                //                     if range_x.contains(&graph_x) && range_y.contains(&graph_y) {
+                //                         let minimum_difference = (range_x.end - range_x.start) * 0.0025f64; //Markpoints must be more than 0.25% the "viewport" apart
+                //                         let new_markpoints = match self.get_graph_type() {
+                //                             GraphType::XAxisLine => {
+                //                                 //If we're in XAxis Line mode, then markpoints are vertical lines.
+                //                                 self.markpoints.iter().cloned().filter(|markpoint| {
+                //                                     (graph_x - markpoint.0).abs() > minimum_difference
+                //                                 }).collect::<Vec<_>>()
+                //                             },
+                //                             GraphType::XYScatter => {
+                //                                 //If we're in XYScatter mode, then markpoints are points.
+                //                                 self.markpoints.iter().cloned().filter(|markpoint| {
+                //                                     (graph_x - markpoint.0).powi(2) + (graph_y - markpoint.1).powi(2) > minimum_difference.powi(2)
+                //                                 }).collect::<Vec<_>>()
+                //                             },
+                //                         };
+
+                //                         if new_markpoints.len() < self.markpoints.len() {
+                //                             self.markpoints = new_markpoints
+                //                         } else {
+                //                             self.markpoints.push((graph_x, graph_y))
+                //                         }
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     } 
+                // }
                 self.previous_mouse_input = Some(mouse_input);
             },
             GraphMessage::MouseWheel(mouse_input) => {
-                if let (Some(x), Some(y)) = self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y){
-                    if let (Some(previous_x_range), Some(previous_y_range)) = (&mut self.previous_x_range, &mut self.previous_y_range) {
+                if let ((Some(x), Some(y)), (_, Some(sec_y))) 
+                = (self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y), self.convert_local_x_y_to_graph_x_sec_y(ctx, mouse_input.local_x, mouse_input.local_y)){
+                    if let (Some(previous_x_range), Some(previous_y_range), Some(previous_sec_y_range)) 
+                        = (&mut self.previous_x_range, &mut self.previous_y_range, &mut self.previous_sec_y_range) {
                         let scroll_amount = mouse_input.scroll_delta_y.clamp(-100f64, 100f64);
                         if (previous_x_range.contains(&x) || mouse_input.control_held || mouse_input.meta_held) && !mouse_input.shift_held {
                             let x_ratio = (x - previous_x_range.start)/(previous_x_range.end - previous_x_range.start);
@@ -171,13 +170,19 @@ impl Component for Graph {
                             previous_x_range.start = new_x_start;
                             previous_x_range.end = new_x_end;
                         }
-                        if (previous_y_range.contains(&y) || mouse_input.shift_held) && !(mouse_input.control_held || mouse_input.meta_held) {
+                        if ((previous_y_range.contains(&y) && previous_sec_y_range.contains(&sec_y)) || mouse_input.shift_held) && !(mouse_input.control_held || mouse_input.meta_held) {
                             let y_ratio = (y - previous_y_range.start)/(previous_y_range.end - previous_y_range.start);
                             let y_range_difference = previous_y_range.end - previous_y_range.start;
                             let new_y_start = previous_y_range.start - y_range_difference * y_ratio * (scroll_amount/1000f64);
                             let new_y_end = previous_y_range.end + y_range_difference * (1f64 - y_ratio)*(scroll_amount/1000f64);
                             previous_y_range.start = new_y_start;
                             previous_y_range.end = new_y_end;
+                            let sec_y_ratio = (sec_y - previous_sec_y_range.start)/(previous_sec_y_range.end - previous_sec_y_range.start);
+                            let sec_y_range_difference = previous_sec_y_range.end - previous_sec_y_range.start;
+                            let new_sec_y_start = previous_sec_y_range.start - sec_y_range_difference * sec_y_ratio * (scroll_amount/1000f64);
+                            let new_sec_y_end = previous_sec_y_range.end + sec_y_range_difference * (1f64 - sec_y_ratio)*(scroll_amount/1000f64);
+                            previous_sec_y_range.start = new_sec_y_start;
+                            previous_sec_y_range.end = new_sec_y_end;
                         }
                     }
                 }
@@ -187,16 +192,26 @@ impl Component for Graph {
             GraphMessage::MouseMovement(mouse_input) => {
                 if let Some(previous_input) = &self.previous_mouse_input {
                     if previous_input.left_click {
-                        if let (Some(previous_x), Some(previous_y)) = self.convert_local_x_y_to_graph_x_y(ctx, previous_input.local_x, previous_input.local_y) {
-                            if let (Some(current_x), Some(current_y)) = self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y) {
-                                if let (Some(previous_x_range), Some(previous_y_range)) = (&mut self.previous_x_range, &mut self.previous_y_range) {
+                        if let ((Some(previous_x), Some(previous_y)), (_, Some(previous_sec_y))) 
+                            = (self.convert_local_x_y_to_graph_x_y(ctx, previous_input.local_x, previous_input.local_y), self.convert_local_x_y_to_graph_x_sec_y(ctx, previous_input.local_x, previous_input.local_y)) {
+                            if let ((Some(current_x), Some(current_y)), (_, Some(current_sec_y))) 
+                                = (self.convert_local_x_y_to_graph_x_y(ctx, mouse_input.local_x, mouse_input.local_y), self.convert_local_x_y_to_graph_x_sec_y(ctx, mouse_input.local_x, mouse_input.local_y)) {
+                                if let Some(previous_x_range) = &mut self.previous_x_range {
                                     if (previous_x_range.contains(&current_x) || mouse_input.control_held || mouse_input.meta_held) && !mouse_input.shift_held {
                                         previous_x_range.start -= current_x - previous_x;
                                         previous_x_range.end -= current_x - previous_x;
                                     }
+                                }
+                                if let Some(previous_y_range) = &mut self.previous_y_range {
                                     if (previous_y_range.contains(&current_y) || mouse_input.shift_held) && !(mouse_input.control_held || mouse_input.meta_held) {
                                         previous_y_range.start -= current_y - previous_y;
                                         previous_y_range.end -= current_y - previous_y;
+                                    }
+                                }
+                                if let Some(previous_sec_y_range) = &mut self.previous_sec_y_range {
+                                    if (previous_sec_y_range.contains(&current_sec_y) || mouse_input.shift_held) && !(mouse_input.control_held || mouse_input.meta_held) {
+                                        previous_sec_y_range.start -= current_sec_y - previous_sec_y;
+                                        previous_sec_y_range.end -= current_sec_y - previous_sec_y;
                                     }
                                 }
                             }
