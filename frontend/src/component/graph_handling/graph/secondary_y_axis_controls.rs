@@ -92,7 +92,7 @@ impl Component for SecYAxisControls {
                         </Channel<(),DataUnit,(AxisDataType,AxisDataOption)>>
                     </div>
                 </ModalWindow>
-                <button onclick={open_modal}>{"SecY-Axis Options"}</button>
+                <button class="graph-button" onclick={open_modal}>{"SecY-Axis Options"}</button>
                 <CopyPaste copy_visible={true} paste_visible={paste_visible} callback={oncopypaste}/>
             </div>
         )

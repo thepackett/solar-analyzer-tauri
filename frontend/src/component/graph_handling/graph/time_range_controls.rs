@@ -128,9 +128,9 @@ impl Component for TimeRangeSelector {
         html!(
             <div>
                 <p>{"Date range goes here"}</p>
-                <input ref={self.input_node_ref.clone()} type={"text"} id={props.id.clone()}/>
+                <input class="graph-text-input" ref={self.input_node_ref.clone()} type={"text"} id={props.id.clone()}/>
                 //Include resolution selector that defaults to auto?
-                <select onchange={onresolutionchange} ref={self.select_node_ref.clone()}>
+                <select class="graph-dropdown" onchange={onresolutionchange} ref={self.select_node_ref.clone()}>
                     <option value={"auto"} selected=true>{"Auto"}</option>
                     <option value={"1_minute"}>{"1 Minute"}</option>
                     <option value={"5_minutes"}>{"5 Minutes"}</option>

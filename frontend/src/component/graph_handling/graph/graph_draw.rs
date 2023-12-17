@@ -9,7 +9,7 @@ use crate::component::visual::theme_data::ThemeData;
 
 use super::{Graph, graph_draw_utils::{other_axis_label_formatter, time_axis_label_formatter}};
 
-pub const CHART_MARGIN_SIZE: u32 = 20;
+pub const CHART_MARGIN_SIZE: u32 = 10;
 pub const CHART_LABEL_SIZE: u32 = 40;
 
 
